@@ -1,8 +1,10 @@
-(ns clairvoyant.core)
+(ns clairvoyant.core
+  (:require
+   [clojure.walk :as walk]
+   [cljs.analyzer :as analyzer]))
 
 (def ^:dynamic *tracer*)
 (def ^:dynamic *trace-depth* 0)
-(def ^:dynamic *trace-data*)
 
 (def ignored-form?
   '#{def quote try assert})
@@ -12,25 +14,22 @@
     :or {trace-depth 0}}
    & body]
   `(binding [*tracer* ~tracer
-             *trace-depth* ~trace-depth
-             *trace-data* ~trace-data]
+             *trace-depth* ~trace-depth]
      ~@body))
 
 (defn trace-body
-  ([form]
-     (trace-body form *trace-data*))
-  ([form trace-data]
-     `((when (satisfies? ITraceEnter ~*tracer*)
-         (trace-enter ~*tracer* ~trace-data))
-       (let [return# (if (satisfies? ITraceError ~*tracer*)
-                       (try
-                         ~form
-                         (catch js/Object e#
-                           (trace-error ~*tracer* (assoc ~trace-data :error e#))))
-                       ~form)]
-         (when (satisfies? ITraceExit ~*tracer*)
-           (trace-exit ~*tracer* (assoc ~trace-data :exit return#)))
-         return#))))
+  [form trace-data]
+  `((when (satisfies? ITraceEnter ~*tracer*)
+      (trace-enter ~*tracer* ~trace-data))
+    (let [return# (if (satisfies? ITraceError ~*tracer*)
+                    (try
+                      ~form
+                      (catch js/Object e#
+                        (trace-error ~*tracer* (assoc ~trace-data :error e#))))
+                    ~form)]
+      (when (satisfies? ITraceExit ~*tracer*)
+        (trace-exit ~*tracer* (assoc ~trace-data :exit return#)))
+      return#)))
 
 (defmulti trace-form
   (fn [[op & rest]] op)
@@ -54,34 +53,37 @@
            arg
            (gensym "a_")))))
 
-(defn condition-map? [x]
+(defn condition-map?
+  "Returns true if x is a condition map, false otherwise."
+  [x]
   (and (map? x)
        (or (vector? (:pre x))
            (vector? (:post x)))))
 
-(defn condition-map-and-body [fn-spec]
-  (let [[x & body] fn-spec]
+(defn condition-map-and-body
+  "Given a function body, return a vetor of the condition map and 
+  the function body."
+  [fn-body]
+  (let [[x & body] fn-body]
     (if (and (seq body)
              (condition-map? x))
       [x body]
-      [nil fn-spec])))
+      [nil fn-body])))
 
 (defn trace-fn-spec
-  ([arglist body]
-     (trace-fn-spec arglist body *trace-data*))
-  ([arglist body trace-data]
-     (let [[condition-map body] (condition-map-and-body body)
-           munged-arglist (munge-arglist arglist)
-           args (normalize-arglist arglist)
-           munged-args (normalize-arglist munged-arglist)
-           trace-data (assoc trace-data :args `~munged-args)
-           form `((fn ~munged-arglist
-                    (let ~(vec (interleave args munged-args))
-                      ((fn []
-                         ~condition-map
-                         ~@body))))
-                  ~@munged-args)]
-       `(~munged-arglist ~@(trace-body form trace-data)))))
+  [arglist body trace-data]
+  (let [[condition-map body] (condition-map-and-body body)
+        munged-arglist (munge-arglist arglist)
+        args (normalize-arglist arglist)
+        munged-args (normalize-arglist munged-arglist)
+        trace-data (assoc trace-data :args `~munged-args)
+        form `((fn ~munged-arglist
+                 (let ~(vec (interleave args munged-args))
+                   ((fn []
+                      ~condition-map
+                      ~@body))))
+               ~@munged-args)]
+    `(~munged-arglist ~@(trace-body form trace-data))))
 
 (defn trace-fn
   [form]
@@ -96,10 +98,11 @@
                      :form '~form
                      :ns '~(.-name *ns*)
                      :name '~sym
-                     :anonymous? true}]
-    `(~op ~@(doall (for [[arglist & body] specs
-                         :let [trace-data (assoc trace-data :arglist `'~arglist)]]
-                     (trace-fn-spec arglist body trace-data))))))
+                     :anonymous? true}
+        specs (for [[arglist & body] specs
+                    :let [trace-data (assoc trace-data :arglist `'~arglist)]]
+                (trace-fn-spec arglist body trace-data))]
+    `(~op ~@(doall specs))))
 
 (defmethod trace-form 'fn*
   [form] (trace-fn form))
