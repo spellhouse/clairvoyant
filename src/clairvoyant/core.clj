@@ -6,9 +6,6 @@
 (def ^:dynamic *tracer*)
 (def ^:dynamic *trace-depth* 0)
 
-(def ignored-form?
-  '#{def quote try assert})
-
 (defmacro ^:private with-trace-context
   [{:keys [tracer trace-depth trace-data]
     :or {trace-depth 0}}
@@ -16,6 +13,9 @@
   `(binding [*tracer* ~tracer
              *trace-depth* ~trace-depth]
      ~@body))
+
+;; ---------------------------------------------------------------------
+;; Form tracing
 
 (defn trace-body
   [form trace-data]
@@ -168,9 +168,43 @@
                `(~proto ~@(doall specs))))
            impls))))
 
+;; ---------------------------------------------------------------------
+;; Symbol expansion
+
+(def expansion-form?
+  '#{reify})
+
+(defmulti expand-symbols
+  (fn [[op & rest] env] op)
+  :default ::default)
+
+(defmethod expand-symbols 'reify
+  [[op & rest] env]
+  (cons op (map
+            (fn [x]
+              (if-let [resolved (and (symbol? x)
+                                     (analyzer/resolve-var env x))]
+                (:name resolved)
+                x))
+            rest)))
+
+(defmethod expand-symbols ::default
+  [form env] form)
+
+(defn expand-form
+  [form env]
+  (walk/prewalk
+   (fn [x]
+     (if (and (list? x)
+              (expansion-form? (first x)))
+       (expand-symbols x env)
+       x))
+   form))
+
 (defmacro trace-forms
   [{:keys [tracer trace-depth]} & forms]
   (if tracer
     (with-trace-context {:tracer tracer :trace-depth trace-depth}
-      `(do ~@(doall (map trace-form forms))))
+      (let [expanded (expand-form forms &env)]
+        `(do ~@(doall (map trace-form expanded)))))
     `(do ~@forms)))
