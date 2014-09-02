@@ -32,11 +32,11 @@
       return#)))
 
 (defmulti trace-form
-  (fn [[op & rest]] op)
+  (fn [[op & rest] env] op)
   :default ::default)
 
 (defmethod trace-form ::default
-  [form] form)
+  [form _] form)
 
 (defn normalize-arglist
   "Removes variation from an argument list."
@@ -104,27 +104,27 @@
     `(~op ~@(doall specs))))
 
 (defmethod trace-form 'fn*
-  [form] (trace-fn form))
+  [form _] (trace-fn form))
 
 (defmethod trace-form 'fn
-  [form] (trace-fn form))
+  [form _] (trace-fn form))
 
 (defmethod trace-form 'defn
-  [form]
-  (let [[_ name & [head & _ :as fn-forms]] (macroexpand-1 form)
-        fn-body (if-not (vector? head) fn-forms (list fn-forms))
-        trace-data `{:op 'defn
+  [form env]
+  (let [[_ name] (macroexpand-1 form)
+        [_ fn-body] (split-with (complement coll?) form)
+        [_ & fn-specs] (macroexpand-1 `(fn ~@fn-body)) 
+        trace-data `{:op '~'defn
                      :form '~form
                      :ns '~(.-name *ns*)
                      :name '~name
                      :anonymous? false}
-        specs (for [[arglist & body] fn-body]
-                (trace-fn-spec arglist body trace-data))]
-    `(def ~name
-       (fn ~@(doall specs)))))
+        specs (doall (for [[arglist & body] fn-specs]
+                       (trace-fn-spec arglist body trace-data)))]
+    `(def ~name (fn ~@specs))))
 
 (defmethod trace-form 'defmethod
-  [form]
+  [form _]
   (let [[op multifn dispatch-val & [arglist & body]] form
         trace-data `{:op '~op
                      :form '~form
@@ -145,7 +145,7 @@
     (cons name (trace-fn-spec arglist body trace-data))))
 
 (defmethod trace-form 'reify
-  [form]
+  [form _]
   (let [[op & body] form
         impls (partition-all 2 (partition-by symbol? body))
         trace-data `{:op '~op
@@ -199,6 +199,8 @@
   [{:keys [tracer trace-depth]} & forms]
   (if tracer
     (with-trace-context {:tracer tracer :trace-depth trace-depth}
-      (let [expanded (expand-form forms &env)]
-        `(do ~@(doall (map trace-form expanded)))))
+      (let [expanded-forms (expand-form forms &env)
+            traced-forms (doall (for [form expanded-forms]
+                                  (trace-form form &env)))]
+        `(do ~@traced-forms)))
     `(do ~@forms)))
