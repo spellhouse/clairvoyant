@@ -6,7 +6,7 @@
 
   :dependencies
   [[org.clojure/clojure "1.6.0" :scope "provided"]
-   [org.clojure/clojurescript "0.0-2311" :scope "provided"]]
+   [org.clojure/clojurescript "0.0-2322" :scope "provided"]]
 
   :profiles
   {:dev
