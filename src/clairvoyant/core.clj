@@ -111,7 +111,8 @@
 
 (defmethod trace-form 'defn
   [form]
-  (let [[_ name [_ & fn-body]] (macroexpand-1 form)
+  (let [[_ name & [head & _ :as fn-forms]] (macroexpand-1 form)
+        fn-body (if-not (vector? head) fn-forms (list fn-forms))
         trace-data `{:op 'defn
                      :form '~form
                      :ns '~(.-name *ns*)
