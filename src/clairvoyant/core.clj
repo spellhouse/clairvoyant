@@ -38,8 +38,6 @@
 (defmethod trace-form ::default
   [form] form)
 
-;; defn/fn/fn*
-
 (defn normalize-arglist
   "Removes variation from an argument list."
   [arglist]
@@ -76,7 +74,9 @@
         munged-arglist (munge-arglist arglist)
         args (normalize-arglist arglist)
         munged-args (normalize-arglist munged-arglist)
-        trace-data (assoc trace-data :args `~munged-args)
+        trace-data (-> trace-data
+                       (assoc :arglist `'~arglist)
+                       (assoc :args `~munged-args))
         form `((fn ~munged-arglist
                  (let ~(vec (interleave args munged-args))
                    ((fn []
@@ -99,8 +99,7 @@
                      :ns '~(.-name *ns*)
                      :name '~sym
                      :anonymous? true}
-        specs (for [[arglist & body] specs
-                    :let [trace-data (assoc trace-data :arglist `'~arglist)]]
+        specs (for [[arglist & body] specs]
                 (trace-fn-spec arglist body trace-data))]
     `(~op ~@(doall specs))))
 
@@ -123,10 +122,6 @@
     `(def ~name
        (fn ~@(doall specs)))))
 
-;; defmulti
-
-;; defmethod
-
 (defmethod trace-form 'defmethod
   [form]
   (let [[op multifn dispatch-val & [arglist & body]] form
@@ -138,8 +133,6 @@
                      :arglist '~arglist}]
     `(defmethod ~multifn ~dispatch-val
        ~@(trace-fn-spec arglist body trace-data))))
-
-;; reify
 
 (defn trace-protocol-spec
   [spec-form trace-data]
@@ -189,7 +182,7 @@
             rest)))
 
 (defmethod expand-symbols ::default
-  [form env] form)
+  [form _] form)
 
 (defn expand-form
   [form env]
