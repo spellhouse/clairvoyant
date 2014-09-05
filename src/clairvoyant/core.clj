@@ -14,6 +14,14 @@
              *trace-depth* ~trace-depth]
      ~@body))
 
+(defmacro
+  ^{:private true
+    :doc "Define one or more methods with the same fn-tail."}
+  defmethods [multifn dispatch-vals & fn-body]
+  `(do
+     ~@(for [dispatch-val dispatch-vals]
+         `(defmethod ~multifn ~dispatch-val ~@fn-body))))
+
 ;; ---------------------------------------------------------------------
 ;; Form tracing
 
@@ -38,10 +46,15 @@
 (defmethod trace-form ::default
   [form _] form)
 
+
+;; fn, fn*
+
+
 (defn normalize-arglist
   "Removes variation from an argument list."
   [arglist]
   (vec (remove '#{&} arglist)))
+
 
 (defn munge-arglist
   "Given an argument list create a new one with generated symbols."
@@ -51,12 +64,14 @@
            arg
            (gensym "a_")))))
 
+
 (defn condition-map?
   "Returns true if x is a condition map, false otherwise."
   [x]
   (and (map? x)
        (or (vector? (:pre x))
            (vector? (:post x)))))
+
 
 (defn condition-map-and-body
   "Given a function body, return a vetor of the condition map and 
@@ -67,6 +82,7 @@
              (condition-map? x))
       [x body]
       [nil fn-body])))
+
 
 (defn trace-fn-spec
   [arglist body trace-data]
@@ -84,6 +100,7 @@
                       ~@body))))
                ~@munged-args)]
     `(~munged-arglist ~@(trace-body form trace-data))))
+
 
 (defn trace-fn
   [form]
@@ -103,18 +120,21 @@
                 (trace-fn-spec arglist body trace-data))]
     `(~op ~@(doall specs))))
 
-(defmethod trace-form 'fn*
-  [form _] (trace-fn form))
 
-(defmethod trace-form 'fn
-  [form _] (trace-fn form))
+(defmethods trace-form ['fn* 'fn `fn]
+  [form _]
+  (trace-fn form))
 
-(defmethod trace-form 'defn
-  [form env]
+
+;; defn
+
+
+(defn trace-defn
+  [[op & body :as form]]
   (let [[_ name] (macroexpand-1 form)
         [_ fn-body] (split-with (complement coll?) form)
         [_ & fn-specs] (macroexpand-1 `(fn ~@fn-body)) 
-        trace-data `{:op '~'defn
+        trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)
                      :name '~name
@@ -123,8 +143,16 @@
                        (trace-fn-spec arglist body trace-data)))]
     `(def ~name (fn ~@specs))))
 
-(defmethod trace-form 'defmethod
+
+(defmethods trace-form [`defn 'defn]
   [form _]
+  (trace-defn form))
+
+
+;; defmethod
+
+
+(defn trace-defmethod [form]
   (let [[op multifn dispatch-val & [arglist & body]] form
         trace-data `{:op '~op
                      :form '~form
@@ -135,6 +163,15 @@
     `(defmethod ~multifn ~dispatch-val
        ~@(trace-fn-spec arglist body trace-data))))
 
+
+(defmethods trace-form ['defmethod `defmethod]
+  [form _]
+  (trace-defmethod form))
+
+
+;; reify
+
+
 (defn trace-protocol-spec
   [spec-form trace-data]
   (let [[name arglist & body] spec-form
@@ -144,35 +181,40 @@
                      :arglist `'~arglist)]
     (cons name (trace-fn-spec arglist body trace-data))))
 
-(defmethod trace-form 'reify
-  [form _]
-  (let [[op & body] form
-        impls (partition-all 2 (partition-by symbol? body))
-        trace-data `{:op '~op
+(defn trace-reify-body
+  [reify-body trace-data]
+  (let [impls (partition-all 2 (partition-by symbol? reify-body))]
+    (doall (mapcat
+            (fn [proto+specs]
+              (let [proto (ffirst proto+specs)
+                    specs (second proto+specs)
+                    trace-data (assoc trace-data :protocol `'~proto)
+                    specs (for [spec specs]
+                            (trace-protocol-spec spec trace-data))]
+                `(~proto ~@(doall specs))))
+            impls))))
+
+(defn trace-reify
+  [[op & body :as form]]
+  (let [trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)}]
-    `(reify
-       ~@(mapcat
-           (fn [proto+specs]
-             (let [proto (ffirst proto+specs)
-                   specs (second proto+specs)
-                   trace-data (assoc trace-data :protocol `'~proto)
-                   specs (for [spec specs]
-                           (trace-protocol-spec spec trace-data))]
-               `(~proto ~@(doall specs))))
-           impls))))
+    `(~op ~@(trace-reify-body body trace-data))))
+
+(defmethods trace-form ['reify `reify]
+  [form _] (trace-reify form))
 
 ;; ---------------------------------------------------------------------
 ;; Symbol expansion
 
 (def expansion-form?
-  '#{reify})
+  #{'reify `reify})
 
 (defmulti expand-symbols
   (fn [[op & rest] env] op)
   :default ::default)
 
-(defmethod expand-symbols 'reify
+(defmethods expand-symbols ['reify `reify]
   [[op & rest] env]
   (cons op (map
             (fn [x]
