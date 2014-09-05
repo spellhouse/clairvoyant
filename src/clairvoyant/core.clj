@@ -33,7 +33,8 @@
                     (try
                       ~form
                       (catch js/Object e#
-                        (trace-error ~*tracer* (assoc ~trace-data :error e#))))
+                        (trace-error ~*tracer* (assoc ~trace-data :error e#))
+                        (throw e#)))
                     ~form)]
       (when (satisfies? ITraceExit ~*tracer*)
         (trace-exit ~*tracer* (assoc ~trace-data :exit return#)))
