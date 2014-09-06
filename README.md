@@ -100,6 +100,7 @@ programmer to trace any form they wish rather than just the special forms.
  `:protocol` | The protocol's name (fully resolved) | `clojure.core/ILookup`
  `:name`     | The functions's name                 | `-lookup`
  `:arglist`  | The function's signature             | `[a b]`
+ `:args`     | The arguments passed to the method   | `[1 2]`
 
 
 ## What about Clojure?
