@@ -63,6 +63,67 @@ a map containing at the least the following information.
 More information about trace data can be found in the 
 [Trace Data](#trace-data) section.
 
+To picture of how this looks consider this simplified example of the
+tracing life cycle for the `defn` form.
+
+
+```clj
+(trace/trace-forms
+  {:tracer default-tracer}
+  (defn example [x]
+    ;; TRACE ENTER
+    ;; TRACE ERROR (START)
+    {:pre [(even? x)]}
+    (+ x x)
+    ;; TRACE ERROR (END)
+    ;; TRACE EXIT
+    ))
+
+(example 2)
+(example 1)
+```
+
+In the first call to `example` the tracer's `ITraceEnter` function is
+called with the trace data
+
+```clj
+{:name 'example
+ :ns 'foo
+ :form '(defn example [x] {:pre [(even? x)]} (+ x x))
+ :arglist '[x]
+ :args [2]
+ :anonymous? false}
+```
+
+Notice this occurs _before_ the precondition is evaluated. This is
+useful because it means the functions input's are visible even when the
+condition fails which is very useful for debugging. Under the hood the
+underlying `fn` form is transformed to make this possible.
+
+Before the function returns the tracer's `ITraceExit` function is
+called with the same trace data as before, however, it contains one
+additional bit of information; the exit value.
+
+```clj
+{...
+ :exit 4
+ ...}
+```
+
+In the second call to `example` the tracer's `ITraceEnter` function
+would still be called containing similar trace data from the first
+example. But when the precondition is evaluated, it will raise an
+`AssertionError`. This is when the tracer's `ITraceError` will be
+called. As with the exit trace data this will contain the same data
+information from the trace entry point but will contain a key for the
+error. 
+
+```clj
+{...
+ :error AssertionError
+ ...}
+```
+
 ### Source code transformation
 
 `clairvoyant.core/trace-forms` is the sole macro used for source code
@@ -106,7 +167,8 @@ programmer to trace any form they wish rather than just the special forms.
 ## What about Clojure?
 
 This library was born out of frustration with `println` debugging in
-ClojureScript. For the moment it will remain a ClojureScript project but.
+ClojureScript. For the moment it will remain a ClojureScript project but
+that shouldn't be for long.
 
 ## License
 
