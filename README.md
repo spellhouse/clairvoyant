@@ -96,11 +96,11 @@ called with the trace data
 ```
 
 Notice this occurs _before_ the precondition is evaluated. This is
-useful because it means the functions input's are visible even when the
-condition fails which is very useful for debugging. Under the hood the
+useful because it means the function's inputs are visible even when the
+condition fails which can be useful for debugging. Under the hood the
 underlying `fn` form is transformed to make this possible.
 
-Before the function returns the tracer's `ITraceExit` function is
+Before the function returns, the tracer's `ITraceExit` function is
 called with the same trace data as before, however, it contains one
 additional bit of information; the exit value.
 
