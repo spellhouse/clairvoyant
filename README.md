@@ -35,7 +35,7 @@ y = 2
 
 ## Design
 
-Clairvoyant's is based on two concepts: tracers and source code 
+Clairvoyant is based on two concepts: tracers and source code 
 transformation. Although this is not a dramatic departure from similar 
 tools, Clairvoyant maintains an emphasis on extensibility which affords
 the programmer finer control over the tracing proccess. This
