@@ -54,11 +54,11 @@ general they're positioned to strategically.
 At each point in the trace the tracer will recieve data in the form of
 a map containing at the least the following information.
 
-| Key     | Description                      | Example      |
-|-----------------------------------------------------------|
-| `:op`   | The form operator                | `fn`         |
-| `:form` | The form being traced            | `(fn [x] x)` |
-| `:ns`   | The form's originating namespace | `foo`        |
+ Key     | Description                      | Example
+---------|----------------------------------|--------------
+ `:op`   | The form operator                | `fn`
+ `:form` | The form being traced            | `(fn [x] x)`
+ `:ns`   | The form's originating namespace | `foo`
 
 More information about trace data can be found in the 
 [Trace Data](#trace-data) section.
