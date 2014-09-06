@@ -77,7 +77,7 @@ programmer to trace any form they wish rather than just the special forms.
 ### `defn`, `fn`, `fn*`
 
  Key           | Description                              | Example
---------------------------------------------------------------------
+---------------|------------------------------------------|---------
  `:name`       | The function's name (if it provided)     | `add`
  `:arglist`    | The function's signature                 | `[a b]`
  `:args`       | The arguments passed to the function     | `[1 2]`
@@ -86,7 +86,7 @@ programmer to trace any form they wish rather than just the special forms.
 ### `defmethod`
 
  Key             | Description                        | Example
---------------------------------------------------------------------------
+-----------------|------------------------------------|-------------------
  `:name`         | The multimethod's name             | `+`
  `:arglist`      | The methods's signature            | `[a b]`
  `:dispatch-val` | The dispatch value                 | `[Number Number]`
@@ -96,7 +96,7 @@ programmer to trace any form they wish rather than just the special forms.
 ### `reify`
 
  Key         | Description                          | Example
------------------------------------------------------------------------------
+-------------|--------------------------------------|------------------------
  `:protocol` | The protocol's name (fully resolved) | `clojure.core/ILookup`
  `:name`     | The functions's name                 | `-lookup`
  `:arglist`  | The function's signature             | `[a b]`
