@@ -36,28 +36,88 @@
 ;; ---------------------------------------------------------------------
 ;; Core tracers 
 
+
 (def default-tracer
-  (reify
-    ITraceEnter
-    (-trace-enter [_ {:keys [ns name args arglist protocol dispatch-val anonymous?]}]
-      (.groupCollapsed js/console
-        (if protocol
-          (str protocol " " name " " arglist)
-          (str ns "/" name
-               " "
-               (when dispatch-val (str (pr-str dispatch-val) " "))
-               arglist
-               (when anonymous? " (anonymous)"))))
-      (let [arglist (remove '#{&} arglist)]
-        (doseq [[sym val] (map vector arglist args)]
-          (.log js/console (str sym) "=" val))))
+  (letfn [(log-binding [form init]
+            (.groupCollapsed js/console "%c%s %c%s"
+                             "font-weight:bold;"
+                             (pr-str form)
+                             "font-weight:normal;"
+                             (pr-str init)))
+          (has-bindings? [op]
+            #{'fn*
+              `fn
+              'fn
+              'defn
+              `defn
+              'defmulti
+              `defmulti
+              'reify
+              `reify
+              'let
+              `let} op)]
+    (reify
+      ITraceEnter
+      (-trace-enter
+        [_ {:keys [anonymous?
+                   arglist
+                   args
+                   dispatch-val
+                   form
+                   init
+                   name
+                   ns
+                   op
+                   protocol]}]
+        (cond
+         ;; fn-like
+         (#{'fn*
+            `fn
+            'fn
+            'defn
+            `defn
+            'defmulti
+            `defmulti
+            'reify
+            `reify} op)
+         (let [title (if protocol
+                       (str protocol " " name " " arglist)
+                       (str ns "/" name
+                            (when dispatch-val
+                              (str " " (pr-str dispatch-val)))
+                            (str " " arglist)
+                            (when anonymous? " (anonymous)")))
+               arglist (remove '#{&} arglist)]
+           (.groupCollapsed js/console title)
+           (.groupCollapsed js/console "bindings"))
+         
+         (#{'let `let} op)
+         (let [title (str op)]
+           (.groupCollapsed js/console title)
+           (.groupCollapsed js/console "bindings"))
 
-    ITraceExit
-    (-trace-exit [_ {:keys [exit]}]
-      (.log js/console exit)
-      (.groupEnd js/console))
+         (#{'binding} op)
+         (log-binding form init)))
 
-    ITraceError
-    (-trace-error [_ {:keys [form error]}]
-      (.error js/console (.-stack error))
-      (.groupEnd js/console))))
+      ITraceExit
+      (-trace-exit [_ {:keys [op exit]}]
+        (cond
+         (#{'binding} op)
+         (do (.info js/console exit)
+             (.groupEnd js/console))
+
+         (has-bindings? op)
+         (do (.groupEnd js/console)
+             (.info js/console exit)
+             (.groupEnd js/console))))
+
+      ITraceError
+      (-trace-error [_ {:keys [op form error]}]
+        (cond
+         (#{'binding} op)
+         (.error js/console (.-stack error))
+
+         (has-bindings? op)
+         (do (.groupEnd js/console)
+             (.error js/console (.-stack error))
+             (.groupEnd js/console)))))))

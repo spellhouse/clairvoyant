@@ -1,6 +1,7 @@
 (ns clairvoyant.core
   (:require
    [clojure.walk :as walk]
+   [clojure.pprint :as pprint]
    [cljs.analyzer :as analyzer]))
 
 (def ^:dynamic *tracer*)
@@ -111,10 +112,13 @@
        x))
    form))
 
+
 (defn ^:private debug-form
-  "Only useful for ClojureScript."
+  "Throw an exception containing a pretty printed form. Only useful for 
+  debugging macros in ClojureScript."
   [form]
   (throw (Exception. (with-out-str (clojure.pprint/pprint form)))))
+
 
 (defmacro trace-forms
   [{:keys [tracer trace-depth]} & forms]
@@ -131,18 +135,23 @@
 
 ;; let
 
+(defn trace-bindings
+  [bindings env & [quote-init?]]
+  (let [quote-init? (not (false? quote-init?))]
+    (doall (mapcat
+            (fn [[binding form]]
+              (let [trace-data `{:op '~'binding
+                                 :form '~binding
+                                 :init ~(if quote-init? `'~form form)}]
+                `[~binding ~(trace-body (trace-form form env) trace-data)]))
+            (partition 2 bindings)))))
+
+
 (defmethods trace-form ['let 'let* `let]
   [[op bindings & body :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op '~(resolve-sym op env)
                      :form '~form}
-        bindings (doall (mapcat
-                          (fn [[binding form]]
-                            (let [trace-data `{:op :binding
-                                               :form '~binding
-                                               :local :let
-                                               :init '~form}]
-                              `[~binding ~(trace-body form trace-data)]))
-                          (partition 2 bindings)))
+        bindings (trace-bindings bindings env)
         body (doall (for [form body]
                       (trace-form form env)))
         form `(~op ~(vec bindings) ~@body)]
@@ -151,6 +160,8 @@
 
 ;; fn, fn*
 
+(defn variadic? [arglist]
+  (boolean (some '#{&} arglist)))
 
 (defn normalize-arglist
   "Removes variation from an argument list."
@@ -194,15 +205,16 @@
         munged-arglist (munge-arglist arglist)
         args (normalize-arglist arglist)
         munged-args (normalize-arglist munged-arglist)
-        trace-data (-> trace-data
-                       (assoc :arglist `'~arglist)
-                       (assoc :args `~munged-args))
-        form `((fn ~munged-arglist
-                 (let ~(vec (interleave args munged-args))
-                   ((fn []
-                      ~condition-map
-                      ~@body))))
-               ~@munged-args)]
+        trace-data (assoc trace-data :arglist `'~arglist)
+        bindings (mapcat vector args munged-args)
+        fn-form `(fn ~munged-arglist
+                   (let [~@(trace-bindings bindings env false)]
+                     ((fn []
+                        ~condition-map
+                        ~@body))))
+        form (if (variadic? arglist)
+               `(apply ~fn-form ~@munged-args)
+               `(~fn-form ~@munged-args))]
     `(~munged-arglist ~(trace-body form trace-data))))
 
 
