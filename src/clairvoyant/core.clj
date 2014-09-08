@@ -23,29 +23,47 @@
          `(defmethod ~multifn ~dispatch-val ~@fn-body))))
 
 
+(defn resolve-sym
+  [sym env]
+  (if (= *ns* analyzer/*cljs-ns*)
+    (:name (analyzer/resolve-var env sym))
+    (let [resolved (resolve 'let)
+          sym (.sym resolved)
+          ns-name (.. resolved ns name)]
+      (symbol (str ns-name) (str sym)))))
+
+
 (defn trace-body
-  "Given a form and trace data, return a double containing the 
-  forms for a trace life cycle."
+  "Given a form and trace data, return the form for a trace life cycle."
   [form trace-data]
-  `((when (satisfies? ITraceEnter ~*tracer*)
-      (trace-enter ~*tracer* ~trace-data))
-    (let [f# (fn [] ~form)
-          return# (if (satisfies? ITraceError ~*tracer*)
-                    (try
-                      (f#)
-                      (catch js/Object e#
-                        (trace-error ~*tracer* (assoc ~trace-data :error e#))
-                        (throw e#)))
-                    (f#))]
-      (when (satisfies? ITraceExit ~*tracer*)
-        (trace-exit ~*tracer* (assoc ~trace-data :exit return#)))
-      return#)))
+  `(let [trace-data# ~trace-data] ;; Cache the initial trace data.
+     (when (satisfies? ITraceEnter ~*tracer*)
+       (trace-enter ~*tracer* trace-data#))
+     (let [;; Creating a nullary function adds an extra call but reduces
+           ;; the amount of generated code. It also kills two birds with
+           ;; one stone; the trace error and exit steps can occur in the
+           ;; same location.
+           f# (fn []
+                (let [return# ~form]
+                  (when (satisfies? ITraceExit ~*tracer*)
+                    (trace-exit ~*tracer* (assoc trace-data# :exit return#)))
+                  return#))]
+       ;; Only setup a try/catch when the programmer expects trace error
+       ;; information.
+       (if (satisfies? ITraceError ~*tracer*)
+         (try
+           (f#)
+           (catch js/Object e#
+             (trace-error ~*tracer* (assoc trace-data# :error e#))
+             (throw e#)))
+         (f#)))))
 
 (defmulti trace-form
   "Return the trace form for a single form."
   (fn [form env]
     (if (seq? form)
-      (let [[op & rest] form]
+      (let [[op & rest] form
+            op (resolve-sym op env)]
         op)
       form))
   :default ::default)
@@ -93,6 +111,11 @@
        x))
    form))
 
+(defn ^:private debug-form
+  "Only useful for ClojureScript."
+  [form]
+  (throw (Exception. (with-out-str (clojure.pprint/pprint form)))))
+
 (defmacro trace-forms
   [{:keys [tracer trace-depth]} & forms]
   (if tracer
@@ -105,6 +128,26 @@
 
 ;; ---------------------------------------------------------------------
 ;; Form tracing
+
+;; let
+
+(defmethods trace-form ['let 'let* `let]
+  [[op bindings & body :as form] env]
+  (let [trace-data `{:op '~op
+                     :form '~form}
+        bindings (doall (mapcat
+                          (fn [[binding form]]
+                            (let [trace-data `{:op :binding
+                                               :form '~binding
+                                               :local :let
+                                               :init '~form}]
+                              `[~binding ~(trace-body form trace-data)]))
+                          (partition 2 bindings)))
+        body (doall (for [form body]
+                      (trace-form form env)))
+        form `(~op ~(vec bindings) ~@body)]
+    (trace-body form trace-data)))
+
 
 ;; fn, fn*
 
@@ -160,7 +203,7 @@
                       ~condition-map
                       ~@body))))
                ~@munged-args)]
-    `(~munged-arglist ~@(trace-body form trace-data))))
+    `(~munged-arglist ~(trace-body form trace-data))))
 
 
 (defn trace-fn
