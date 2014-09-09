@@ -7,7 +7,7 @@ Clairvoyant is a library that offers flexible tracing for ClojureScript.
 Add Clairvoyant to your project `:dependencies`.
 
 ```clj
-[spellhouse/clairvoyant "0.1.0-SNAPSHOT"]
+[spellhouse/clairvoyant "0.0-23-gd6225fd"]
 ```
 
 ## Example
@@ -35,8 +35,8 @@ y = 2
 
 ## Design
 
-Clairvoyant is based on two concepts: tracers and source code 
-transformation. Although this is not a dramatic departure from similar 
+Clairvoyant is based on two concepts: tracers and source code
+transformation. Although this is not a dramatic departure from similar
 tools, Clairvoyant maintains an emphasis on extensibility which affords
 the programmer finer control over the tracing proccess. This
 extensibility is provided by Clojure's protocols and mulitmethods.
@@ -60,7 +60,7 @@ a map containing at the least the following information.
  `:form` | The form being traced            | `(fn [x] x)`
  `:ns`   | The form's originating namespace | `foo`
 
-More information about trace data can be found in the 
+More information about trace data can be found in the
 [Trace Data](#trace-data) section.
 
 To picture of how this looks consider this simplified example of the
@@ -116,7 +116,7 @@ example. But when the precondition is evaluated, it will raise an
 `AssertionError`. This is when the tracer's `ITraceError` will be
 called. As with the exit trace data this will contain the same data
 information from the trace entry point but will contain a key for the
-error. 
+error.
 
 ```clj
 {...
