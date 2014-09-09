@@ -24,18 +24,30 @@
          `(defmethod ~multifn ~dispatch-val ~@fn-body))))
 
 
+(defn ^:private debug-form
+  "Throw an exception containing a pretty printed form. Only useful for 
+  debugging macros in ClojureScript."
+  [form]
+  (throw (Exception. (with-out-str (pprint/pprint form)))))
+
+;; Borrowed from schema
+;; SEE: https://github.com/Prismatic/schema/blob/9a2f3ab3b12d215300e66fa84c9e1c7070d6654a/src/clj/schema/macros.clj#L13
+(defn cljs-env?
+  "Take the &env from a macro, and tell whether we are expanding into cljs."
+  [env]
+  (boolean (:ns env)))
+
 (defn resolve-sym
   [sym env]
-  (if (= *ns* analyzer/*cljs-ns*)
-    (if-let [resolved (:name (analyzer/resolve-var env sym))]
-      resolved
-      sym)
-    (if-let [resolved (resolve sym)]
-      (let [sym (.sym resolved)
-            ns-name (.. resolved ns name)]
-        (symbol (str ns-name) (str sym)))
-      sym)))
-
+  (if (cljs-env? env)
+   (if-let [resolved (:name (analyzer/resolve-var env sym))]
+     resolved
+     sym)
+   (if-let [resolved (resolve sym)]
+     (let [sym (.sym resolved)
+           ns-name (.. resolved ns name)]
+       (symbol (str ns-name) (str sym)))
+     sym)))
 
 (defn trace-body
   "Given a form and trace data, return the form for a trace life cycle."
@@ -65,9 +77,9 @@
 (defmulti trace-form
   "Return the trace form for a single form."
   (fn [form env]
-    (if (seq? form)
-      (let [[op & rest] form
-            op (resolve-sym op env)]
+    (if (and (seq? form)
+             (symbol? (first form)))
+      (let [[op & rest] form]
         op)
       form))
   :default ::default)
@@ -76,59 +88,15 @@
   [form env]
   (if (seq? form)
     (cons (first form)
-      (doall (map (fn [x]
-                    (trace-form x env))
-               (rest form))))
+          (doall (for [x (rest form)]
+                   (trace-form x env))))
     form))
-
-;; ---------------------------------------------------------------------
-;; Symbol expansion
-
-(def expansion-form?
-  #{'reify `reify})
-
-(defmulti expand-symbols
-  (fn [[op & rest] env] op)
-  :default ::default)
-
-(defmethods expand-symbols ['reify `reify]
-  [[op & rest] env]
-  (cons op
-    (doall (map
-             (fn [x]
-               (if-let [resolved (and (symbol? x)
-                                      (analyzer/resolve-var env x))]
-                 (:name resolved)
-                 x))
-             rest))))
-
-(defmethod expand-symbols ::default
-  [form _] form)
-
-(defn expand-form
-  [form env]
-  (walk/prewalk
-   (fn [x]
-     (if (and (list? x)
-              (expansion-form? (first x)))
-       (expand-symbols x env)
-       x))
-   form))
-
-
-(defn ^:private debug-form
-  "Throw an exception containing a pretty printed form. Only useful for 
-  debugging macros in ClojureScript."
-  [form]
-  (throw (Exception. (with-out-str (clojure.pprint/pprint form)))))
-
 
 (defmacro trace-forms
   [{:keys [tracer trace-depth]} & forms]
   (if tracer
     (with-trace-context {:tracer tracer :trace-depth trace-depth}
-      (let [traced-forms (doall (for [form (expand-form forms &env)]
-                                  (trace-form form &env)))]
+      (let [traced-forms (doall (for [form forms] (trace-form form &env)))]
         `(do ~@traced-forms)))
     `(do ~@forms)))
 
@@ -150,7 +118,7 @@
             (partition 2 bindings)))))
 
 
-(defmethods trace-form ['let 'let* `let]
+(defmethods trace-form ['let* `let]
   [[op bindings & body :as form] env]
   (let [trace-data `{:op '~(resolve-sym op env)
                      :form '~form}
@@ -171,7 +139,6 @@
   [arglist]
   (vec (remove '#{&} arglist)))
 
-
 (defn munge-arglist
   "Given an argument list create a new one with generated symbols."
   [arglist]
@@ -180,14 +147,12 @@
            arg
            (gensym "a_")))))
 
-
 (defn condition-map?
   "Returns true if x is a condition map, false otherwise."
   [x]
   (and (map? x)
        (or (vector? (:pre x))
            (vector? (:post x)))))
-
 
 (defn condition-map-and-body
   "Given a function body, return a vetor of the condition map and 
@@ -198,7 +163,6 @@
              (condition-map? x))
       [x body]
       [nil fn-body])))
-
 
 (defn trace-fn-spec
   [arglist body trace-data env]
@@ -220,7 +184,6 @@
                `(~fn-form ~@munged-args))]
     `(~munged-arglist ~(trace-body form trace-data))))
 
-
 (defn trace-fn
   [form env]
   (let [[op & body] form
@@ -239,21 +202,20 @@
                        (trace-fn-spec arglist body trace-data env)))]
     `(~op ~@specs)))
 
-
-(defmethods trace-form ['fn* 'fn `fn]
+(defmethods trace-form [`fn 'fn* 'fn]
   [form env]
   (trace-fn form env))
 
 
-;; defn
+;;;; defn
 
 
-(defn trace-defn
+(defmethods trace-form ['defn `defn]
   [[op & body :as form] env]
   (let [[_ name] (macroexpand-1 form)
         [_ fn-body] (split-with (complement coll?) form)
         [_ & fn-specs] (macroexpand-1 `(fn ~@fn-body)) 
-        trace-data `{:op '~op
+        trace-data `{:op 'clojure.core/defn
                      :form '~form
                      :ns '~(.-name *ns*)
                      :name '~name
@@ -263,18 +225,12 @@
     `(def ~name (fn ~@specs))))
 
 
-(defmethods trace-form [`defn 'defn]
-  [form env]
-  (trace-defn form env))
+;;;; defmethod
 
 
-;; defmethod
-
-
-(defn trace-defmethod
-  [form env]
-  (let [[op multifn dispatch-val & [arglist & body]] form
-        trace-data `{:op '~op
+(defmethod trace-form [`defmethod 'defmethod]
+  [[op multifn dispatch-val & [arglist & body] :as form] env]
+  (let [trace-data `{:op 'clojure.core/defmethod
                      :form '~form
                      :ns '~(.-name *ns*)
                      :name '~multifn
@@ -284,12 +240,8 @@
        ~@(trace-fn-spec arglist body trace-data env))))
 
 
-(defmethods trace-form ['defmethod `defmethod]
-  [form env]
-  (trace-defmethod form env))
-
-
-;; defprotocol, reify
+;; ---------------------------------------------------------------------
+;; Protocol specs
 
 
 (defn trace-protocol-spec
@@ -305,36 +257,46 @@
   [reify-body trace-data env]
   (let [impls (partition-all 2 (partition-by symbol? reify-body))]
     (doall (mapcat
-            (fn [proto+specs]
-              (let [proto (ffirst proto+specs)
-                    specs (second proto+specs)
-                    trace-data (assoc trace-data :protocol `'~proto)
+            (fn [protos+specs]
+              (let [protos (first protos+specs)
+                    proto (last protos)
+                    specs (second protos+specs)
+                    trace-data (assoc trace-data
+                                 :protocol `'~(resolve-sym proto env))
                     specs (doall (for [spec specs]
                                    (trace-protocol-spec spec trace-data env)))]
-                `(~proto ~@specs)))
+                `(~@protos ~@specs)))
             impls))))
 
-(defn trace-reify
+
+;;;; reify
+
+
+(defmethods trace-form [`reify 'reify]
   [[op & body :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op 'clojure.core/reify
                      :form '~form
                      :ns '~(.-name *ns*)}]
     `(~op ~@(trace-reify-body body trace-data env))))
 
-(defmethods trace-form ['reify `reify]
-  [form env]
-  (trace-reify form env))
 
-(defmethods trace-form ['extend-type `extend-type]
+;;;; extend-type
+
+
+(defmethods trace-form [`extend-type 'extend-type]
   [[op type & specs :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op 'clojure.core/extend-type
                      :form '~form
                      :ns '~(.-name *ns*)}]
     `(~op ~type ~@(trace-reify-body specs trace-data env))))
 
-(defmethods trace-form ['extend-protocol `extend-protocol]
+
+;;;; extend-protocol
+
+
+(defmethods trace-form [`extend-protocol 'extend-protocol]
   [[op proto & specs :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op 'clojure.core/extend-protocol
                      :form '~form
                      :ns '~(.-name *ns*)}
         fake-specs (trace-reify-body

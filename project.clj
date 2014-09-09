@@ -1,4 +1,4 @@
-(defproject spellhouse/clairvoyant "0.1.0-SNAPSHOT"
+(defproject spellhouse/clairvoyant "0.0-SNAPSHOT"
   :description "ClojureScript tracing library"
   :url "http://github.com/spellhouse/clairvoyant"
   :license {:name "Eclipse Public License"
