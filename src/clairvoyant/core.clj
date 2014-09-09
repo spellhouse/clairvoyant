@@ -120,7 +120,7 @@
 
 (defmethods trace-form ['let* `let]
   [[op bindings & body :as form] env]
-  (let [trace-data `{:op '~(resolve-sym op env)
+  (let [trace-data `{:op '~op
                      :form '~form}
         bindings (trace-bindings bindings env)
         body (doall (for [form body]
@@ -215,7 +215,7 @@
   (let [[_ name] (macroexpand-1 form)
         [_ fn-body] (split-with (complement coll?) form)
         [_ & fn-specs] (macroexpand-1 `(fn ~@fn-body)) 
-        trace-data `{:op 'clojure.core/defn
+        trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)
                      :name '~name
@@ -230,7 +230,7 @@
 
 (defmethod trace-form [`defmethod 'defmethod]
   [[op multifn dispatch-val & [arglist & body] :as form] env]
-  (let [trace-data `{:op 'clojure.core/defmethod
+  (let [trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)
                      :name '~multifn
@@ -274,7 +274,7 @@
 
 (defmethods trace-form [`reify 'reify]
   [[op & body :as form] env]
-  (let [trace-data `{:op 'clojure.core/reify
+  (let [trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)}]
     `(~op ~@(trace-reify-body body trace-data env))))
@@ -285,7 +285,7 @@
 
 (defmethods trace-form [`extend-type 'extend-type]
   [[op type & specs :as form] env]
-  (let [trace-data `{:op 'clojure.core/extend-type
+  (let [trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)}]
     `(~op ~type ~@(trace-reify-body specs trace-data env))))
@@ -296,7 +296,7 @@
 
 (defmethods trace-form [`extend-protocol 'extend-protocol]
   [[op proto & specs :as form] env]
-  (let [trace-data `{:op 'clojure.core/extend-protocol
+  (let [trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)}
         fake-specs (trace-reify-body
