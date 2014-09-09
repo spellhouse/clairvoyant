@@ -50,8 +50,8 @@
               'fn
               'defn
               `defn
-              'defmulti
-              `defmulti
+              'defmethod
+              `defmethod
               'reify
               `reify
               'let
@@ -80,8 +80,8 @@
             'fn
             'defn
             `defn
-            'defmulti
-            `defmulti
+            'defmethod
+            `defmethod
             'reify
             `reify
             'extend-type
