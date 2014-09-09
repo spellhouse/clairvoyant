@@ -7,8 +7,10 @@ Clairvoyant is a library that offers flexible tracing for ClojureScript.
 Add Clairvoyant to your project `:dependencies`.
 
 ```clj
-[spellhouse/clairvoyant "0.0-23-gd6225fd"]
+[spellhouse/clairvoyant "0.0-26-ge2c34ab"]
 ```
+
+This library is alpha quality.
 
 ## Example
 
@@ -28,9 +30,12 @@ Check your JavaScript console and look for a grouped message titled
 `foo/add [a b]`. Open it and you should see
 
 ```
-x = 1
-y = 2
-3
+▾ bindings
+|  ▾ x = 1
+|  | 1
+|  ▾ y = 2
+|  | 2
+▸  3
 ```
 
 ## Design
