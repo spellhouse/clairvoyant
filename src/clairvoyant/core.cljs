@@ -55,7 +55,11 @@
               'reify
               `reify
               'let
-              `let} op)]
+              `let
+              'extend-type
+              `extend-type
+              'extend-protocol
+              `extend-protocol} op)]
     (reify
       ITraceEnter
       (-trace-enter
@@ -79,7 +83,11 @@
             'defmulti
             `defmulti
             'reify
-            `reify} op)
+            `reify
+            'extend-type
+            `extend-type
+            'extend-protocol
+            `extend-protocol} op)
          (let [title (if protocol
                        (str protocol " " name " " arglist)
                        (str ns "/" name

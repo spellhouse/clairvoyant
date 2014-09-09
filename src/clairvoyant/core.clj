@@ -27,11 +27,14 @@
 (defn resolve-sym
   [sym env]
   (if (= *ns* analyzer/*cljs-ns*)
-    (:name (analyzer/resolve-var env sym))
-    (let [resolved (resolve 'let)
-          sym (.sym resolved)
-          ns-name (.. resolved ns name)]
-      (symbol (str ns-name) (str sym)))))
+    (if-let [resolved (:name (analyzer/resolve-var env sym))]
+      resolved
+      sym)
+    (if-let [resolved (resolve sym)]
+      (let [sym (.sym resolved)
+            ns-name (.. resolved ns name)]
+        (symbol (str ns-name) (str sym)))
+      sym)))
 
 
 (defn trace-body
@@ -286,7 +289,7 @@
   (trace-defmethod form env))
 
 
-;; reify
+;; defprotocol, reify
 
 
 (defn trace-protocol-spec
@@ -321,3 +324,44 @@
 (defmethods trace-form ['reify `reify]
   [form env]
   (trace-reify form env))
+
+(defmethods trace-form ['extend-type `extend-type]
+  [[op type & specs :as form] env]
+  (let [trace-data `{:op '~op
+                     :form '~form
+                     :ns '~(.-name *ns*)}]
+    `(~op ~type ~@(trace-reify-body specs trace-data env))))
+
+(defmethods trace-form ['extend-protocol `extend-protocol]
+  [[op proto & specs :as form] env]
+  (let [trace-data `{:op '~op
+                     :form '~form
+                     :ns '~(.-name *ns*)}
+        fake-specs (trace-reify-body
+                    (for [x specs]
+                      (if (symbol? x)
+                        proto
+                        x))
+                    trace-data
+                    env)
+        real-specs (loop [fake-specs fake-specs
+                          types (filter symbol? specs)
+                          new-specs []]
+                     (case [(boolean (seq fake-specs))
+                            (boolean (seq types))]
+                       [true true]
+                       (let [x (first fake-specs)]
+                         (if (symbol? x)
+                           (recur (next fake-specs)
+                                  (next types)
+                                  (conj new-specs (first types)))
+                           (recur (next fake-specs)
+                                  types
+                                  (conj new-specs (first fake-specs)))))
+
+                       [true false]
+                       (seq (into new-specs fake-specs))
+
+                       :else
+                       (seq new-specs)))]
+    `(~op ~(resolve-sym proto env) ~@real-specs)))
