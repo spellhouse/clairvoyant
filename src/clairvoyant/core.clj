@@ -228,7 +228,7 @@
 ;;;; defmethod
 
 
-(defmethod trace-form [`defmethod 'defmethod]
+(defmethods trace-form [`defmethod 'defmethod]
   [[op multifn dispatch-val & [arglist & body] :as form] env]
   (let [trace-data `{:op '~op
                      :form '~form
