@@ -96,7 +96,6 @@ called with the trace data
  :ns 'foo
  :form '(defn example [x] {:pre [(even? x)]} (+ x x))
  :arglist '[x]
- :args [2]
  :anonymous? false}
 ```
 
@@ -146,7 +145,6 @@ programmer to trace any form they wish rather than just the special forms.
 ---------------|------------------------------------------|---------
  `:name`       | The function's name (if it provided)     | `add`
  `:arglist`    | The function's signature                 | `[a b]`
- `:args`       | The arguments passed to the function     | `[1 2]`
  `:anonymous?` | Whether or not the function is anonymous | `false`
 
 ### `defmethod`
@@ -156,17 +154,15 @@ programmer to trace any form they wish rather than just the special forms.
  `:name`         | The multimethod's name             | `+`
  `:arglist`      | The methods's signature            | `[a b]`
  `:dispatch-val` | The dispatch value                 | `[Number Number]`
- `:args`         | The arguments passed to the method | `[1 2]`
 
 
-### `reify`
+### `reify`, `extend-type`, `extend-protocol`
 
  Key         | Description                          | Example
 -------------|--------------------------------------|------------------------
  `:protocol` | The protocol's name (fully resolved) | `clojure.core/ILookup`
  `:name`     | The functions's name                 | `-lookup`
  `:arglist`  | The function's signature             | `[a b]`
- `:args`     | The arguments passed to the method   | `[1 2]`
 
 
 ## What about Clojure?
