@@ -32,10 +32,16 @@
     :repl-options
     {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}}}
 
+  :aliases
+  {"auto-build" ~(clojure.string/split
+                  "do cljsbuild clean, cljsbuild auto"
+                  #"\s+")}
+
   :cljsbuild
   {:builds [{:id "dev"
              :source-paths ["src" "dev"]
              :compiler {:output-to "resources/public/clairvoyant.js"
                         :output-dir "resources/public/out"
                         :optimizations :none
-                        :source-map true}}]})
+                        :source-map true
+                        :pretty-print true}}]})
