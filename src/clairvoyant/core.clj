@@ -4,21 +4,16 @@
    [clojure.pprint :as pprint]
    [cljs.analyzer :as analyzer]))
 
-(def ^:dynamic *tracer*)
-(def ^:dynamic *trace-depth*)
 
-(defmacro ^:private with-trace-context
-  [{:keys [tracer trace-depth trace-data]
-    :or {trace-depth 0}}
-   & body]
-  `(binding [*tracer* ~tracer
-             *trace-depth* ~trace-depth]
-     ~@body))
+;; ---------------------------------------------------------------------
+;; Utilities
 
 (defmacro
   ^{:private true
     :doc "Define one or more methods with the same fn-tail."}
-  defmethods [multifn dispatch-vals & fn-body]
+  defmethods
+  [multifn dispatch-vals & fn-body]
+  {:pre [(vector? dispatch-vals)]}
   `(do
      ~@(for [dispatch-val dispatch-vals]
          `(defmethod ~multifn ~dispatch-val ~@fn-body))))
@@ -30,6 +25,7 @@
   [form]
   (throw (Exception. (with-out-str (pprint/pprint form)))))
 
+
 ;; Borrowed from schema
 ;; SEE: https://github.com/Prismatic/schema/blob/9a2f3ab3b12d215300e66fa84c9e1c7070d6654a/src/clj/schema/macros.clj#L13
 (defn cljs-env?
@@ -37,17 +33,59 @@
   [env]
   (boolean (:ns env)))
 
+
 (defn resolve-sym
+  "Attempt to return a fully resolved symbol from sym."
   [sym env]
   (if (cljs-env? env)
-   (if-let [resolved (:name (analyzer/resolve-var env sym))]
-     resolved
-     sym)
-   (if-let [resolved (resolve sym)]
-     (let [sym (.sym resolved)
-           ns-name (.. resolved ns name)]
-       (symbol (str ns-name) (str sym)))
-     sym)))
+    (if-let [resolved (:name (analyzer/resolve-var env sym))]
+      resolved
+      sym)
+    (if-let [resolved (resolve sym)]
+      (let [sym (.sym resolved)
+            ns-name (.. resolved ns name)]
+        (symbol (str ns-name) (str sym)))
+      sym)))
+
+
+;; ---------------------------------------------------------------------
+;; API
+
+(def ^:dynamic *tracer*)
+
+
+(defmulti trace-form
+  "Return the trace form for a single form."
+  (fn [form env]
+    (if (and (seq? form)
+             (symbol? (first form)))
+      (let [[op & rest] form]
+        op)
+      form))
+  :default ::default)
+
+(defmethod trace-form ::default
+  [form env]
+  (if (seq? form)
+    (cons (first form)
+          (doall (for [x (rest form)]
+                   (trace-form x env))))
+    form))
+
+
+(defmacro trace-forms
+  "Recursively trace one or more forms."
+  [{:keys [tracer trace-depth]} & forms]
+  (if tracer
+    (binding [*tracer* tracer]
+      (let [traced-forms (doall (for [form forms]
+                                  (trace-form form &env)))]
+        `(do ~@traced-forms)))
+    `(do ~@forms)))
+
+
+;; ---------------------------------------------------------------------
+;; Form tracing
 
 (defn trace-body
   "Given a form and trace data, return the form for a trace life cycle."
@@ -74,39 +112,9 @@
              (throw e#)))
          (f#)))))
 
-(defmulti trace-form
-  "Return the trace form for a single form."
-  (fn [form env]
-    (if (and (seq? form)
-             (symbol? (first form)))
-      (let [[op & rest] form]
-        op)
-      form))
-  :default ::default)
-
-(defmethod trace-form ::default
-  [form env]
-  (if (seq? form)
-    (cons (first form)
-          (doall (for [x (rest form)]
-                   (trace-form x env))))
-    form))
-
-(defmacro trace-forms
-  [{:keys [tracer trace-depth]} & forms]
-  (if tracer
-    (with-trace-context {:tracer tracer :trace-depth trace-depth}
-      (let [traced-forms (doall (for [form forms] (trace-form form &env)))]
-        `(do ~@traced-forms)))
-    `(do ~@forms)))
-
-
-;; ---------------------------------------------------------------------
-;; Form tracing
-
-;; let
 
 (defn trace-bindings
+  "Return a trace form for bindings (e.g. [x 0 y 1 ...])."
   [bindings env & [quote-init?]]
   (let [quote-init? (not (false? quote-init?))]
     (doall (mapcat
@@ -118,7 +126,9 @@
             (partition 2 bindings)))))
 
 
-(defmethods trace-form ['let* `let]
+;;;; let
+
+(defn trace-let
   [[op bindings & body :as form] env]
   (let [trace-data `{:op '~op
                      :form '~form}
@@ -128,8 +138,12 @@
         form `(~op ~(vec bindings) ~@body)]
     (trace-body form trace-data)))
 
+(defmethods trace-form [`let 'let* 'let]
+  [form env]
+  (trace-let form env))
 
-;; fn, fn*
+
+;;;; fn, fn*
 
 (defn variadic? [arglist]
   (boolean (some '#{&} arglist)))
@@ -209,8 +223,7 @@
 
 ;;;; defn
 
-
-(defmethods trace-form ['defn `defn]
+(defn trace-defn
   [[op & body :as form] env]
   (let [[_ name] (macroexpand-1 form)
         [_ fn-body] (split-with (complement coll?) form)
@@ -224,11 +237,14 @@
                        (trace-fn-spec arglist body trace-data env)))]
     `(def ~name (fn ~@specs))))
 
+(defmethods trace-form ['defn `defn]
+  [form env]
+  (trace-defn form env))
+
 
 ;;;; defmethod
 
-
-(defmethods trace-form [`defmethod 'defmethod]
+(defn trace-defmethod
   [[op multifn dispatch-val & [arglist & body] :as form] env]
   (let [trace-data `{:op '~op
                      :form '~form
@@ -239,10 +255,13 @@
     `(defmethod ~multifn ~dispatch-val
        ~@(trace-fn-spec arglist body trace-data env))))
 
+(defmethods trace-form [`defmethod 'defmethod]
+  [form env]
+  (trace-defmethod form env))
+
 
 ;; ---------------------------------------------------------------------
 ;; Protocol specs
-
 
 (defn trace-protocol-spec
   [spec-form trace-data env]
@@ -271,7 +290,6 @@
 
 ;;;; reify
 
-
 (defmethods trace-form [`reify 'reify]
   [[op & body :as form] env]
   (let [trace-data `{:op '~op
@@ -282,7 +300,6 @@
 
 ;;;; extend-type
 
-
 (defmethods trace-form [`extend-type 'extend-type]
   [[op type & specs :as form] env]
   (let [trace-data `{:op '~op
@@ -292,7 +309,6 @@
 
 
 ;;;; extend-protocol
-
 
 (defmethods trace-form [`extend-protocol 'extend-protocol]
   [[op proto & specs :as form] env]
