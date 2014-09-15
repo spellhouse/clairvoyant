@@ -68,7 +68,7 @@ a map containing at the least the following information.
 More information about trace data can be found in the
 [Trace Data](#trace-data) section.
 
-To picture of how this looks consider this simplified example of the
+To picture how this looks consider this simplified example of the
 tracing life cycle for the `defn` form.
 
 
@@ -88,8 +88,8 @@ tracing life cycle for the `defn` form.
 (example 1)
 ```
 
-In the first call to `example` the tracer's `ITraceEnter` function is
-called with the trace data
+In the first call to `example`, the tracer's `ITraceEnter` function is
+called with the following trace data:
 
 ```clj
 {:name 'example
@@ -143,7 +143,7 @@ programmer to trace any form they wish rather than just the special forms.
 
  Key           | Description                              | Example
 ---------------|------------------------------------------|---------
- `:name`       | The function's name (if it provided)     | `add`
+ `:name`       | The function's name (if provided)        | `add`
  `:arglist`    | The function's signature                 | `[a b]`
  `:anonymous?` | Whether or not the function is anonymous | `false`
 
