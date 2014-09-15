@@ -45,21 +45,21 @@
                              "font-weight:normal;"
                              (pr-str init)))
           (has-bindings? [op]
-            #{'fn*
-              `fn
-              'fn
-              'defn
-              `defn
-              'defmethod
-              `defmethod
-              'reify
-              `reify
-              'let
-              `let
-              'extend-type
-              `extend-type
-              'extend-protocol
-              `extend-protocol} op)]
+            (#{'fn*
+               `fn
+               'fn
+               'defn
+               `defn
+               'defmethod
+               `defmethod
+               'reify
+               `reify
+               'let
+               `let
+               'extend-type
+               `extend-type
+               'extend-protocol
+               `extend-protocol} op))]
     (reify
       ITraceEnter
       (-trace-enter
