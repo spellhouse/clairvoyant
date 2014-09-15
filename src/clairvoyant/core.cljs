@@ -38,56 +38,34 @@
 
 
 (def default-tracer
-  (letfn [(log-binding [form init]
-            (.groupCollapsed js/console "%c%s %c%s"
-                             "font-weight:bold;"
-                             (pr-str form)
-                             "font-weight:normal;"
-                             (pr-str init)))
-          (has-bindings? [op]
-            #{'fn*
-              `fn
-              'fn
-              'defn
-              `defn
-              'defmethod
-              `defmethod
-              'reify
-              `reify
-              'let
-              `let
-              'extend-type
-              `extend-type
-              'extend-protocol
-              `extend-protocol} op)]
+  (let [log-binding (fn [form init]
+                      (.groupCollapsed js/console "%c%s %c%s"
+                                       "font-weight:bold;"
+                                       (pr-str form)
+                                       "font-weight:normal;"
+                                       (pr-str init)))
+        has-bindings? #{'fn*
+                        `fn
+                        'fn
+                        'defn
+                        `defn
+                        'defmethod
+                        `defmethod
+                        'reify
+                        `reify
+                        'let
+                        `let
+                        'extend-type
+                        `extend-type
+                        'extend-protocol
+                        `extend-protocol}
+        fn-like? (disj has-bindings? 'let `let)]
     (reify
       ITraceEnter
       (-trace-enter
-        [_ {:keys [anonymous?
-                   arglist
-                   args
-                   dispatch-val
-                   form
-                   init
-                   name
-                   ns
-                   op
-                   protocol]}]
+        [_ {:keys [anonymous? arglist args dispatch-val form init name ns op protocol]}]
         (cond
-         ;; fn-like
-         (#{'fn*
-            `fn
-            'fn
-            'defn
-            `defn
-            'defmethod
-            `defmethod
-            'reify
-            `reify
-            'extend-type
-            `extend-type
-            'extend-protocol
-            `extend-protocol} op)
+         (fn-like? op)
          (let [title (if protocol
                        (str protocol " " name " " arglist)
                        (str ns "/" name
