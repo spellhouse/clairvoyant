@@ -214,7 +214,7 @@
                      :anonymous? true}
         specs (doall (for [[arglist & body] specs]
                        (trace-fn-spec arglist body trace-data env)))]
-    `(~op ~@specs)))
+    `(~op ~sym ~@specs)))
 
 (defmethods trace-form [`fn 'fn* 'fn]
   [form env]
