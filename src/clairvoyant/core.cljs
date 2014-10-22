@@ -36,14 +36,45 @@
 ;; ---------------------------------------------------------------------
 ;; Core tracers 
 
+(def ^:private fn-re
+  "Matches the function signature of the result of (str f) where f is a
+  function. Captures the argument list and identifier (if possible)."
+  #"function\s+([a-zA-Z0-9_$]+)?\(([a-zA-Z0-9_,\s]+)\)")
+
+(defn- fn-signature
+  "Return the function signature of f.
+
+  Example:
+
+    (fn-signature inc)
+    ;;=> (fn inc [x])
+
+    (fn-signature map)
+    ;; => (fn [f c1 c2 c3 var_args])
+  "
+  [f]
+  (let [[_ name sig] (re-find fn-re (str f))
+        arglist (mapv symbol (.split sig ","))]
+    (if name
+      (list 'fn (symbol name) arglist)
+      (list 'fn arglist))))
+
 
 (def default-tracer
-  (let [log-binding (fn [form init]
+  (let [pr-val (fn [x]
+                 (if (fn? x)
+                   (pr-str (fn-signature x))
+                   (pr-str x)))
+        log-binding (fn [form init]
                       (.groupCollapsed js/console "%c%s %c%s"
                                        "font-weight:bold;"
                                        (pr-str form)
                                        "font-weight:normal;"
-                                       (pr-str init)))
+                                       (pr-val init)))
+        log-exit (fn [exit]
+                   (.groupCollapsed js/console "=>" (pr-val exit))
+                   (.log js/console exit)
+                   (.groupEnd js/console))
         has-bindings? #{'fn*
                         `fn
                         'fn
@@ -89,12 +120,12 @@
       (-trace-exit [_ {:keys [op exit]}]
         (cond
          (#{'binding} op)
-         (do (.info js/console exit)
+         (do (log-exit exit)
              (.groupEnd js/console))
 
          (has-bindings? op)
          (do (.groupEnd js/console)
-             (.info js/console exit)
+             (log-exit exit)
              (.groupEnd js/console))))
 
       ITraceError
