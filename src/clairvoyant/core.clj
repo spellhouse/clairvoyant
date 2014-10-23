@@ -374,8 +374,7 @@
                      :form '~form
                      :ns '~(.-name *ns*)}
         new-specs (trace-protocol-specs specs trace-data env)]
-    `(do (~op ~tsym ~fields ~@new-specs)
-         ~(trace-ctor form env))))
+    `(~op ~tsym ~fields ~@new-specs)))
 
 
 ;;; defrecord
