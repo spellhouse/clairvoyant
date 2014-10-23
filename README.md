@@ -7,7 +7,7 @@ Clairvoyant is a library that offers flexible tracing for ClojureScript.
 Add Clairvoyant to your project `:dependencies`.
 
 ```clj
-[spellhouse/clairvoyant "0.0-39-gb64d916"]
+[spellhouse/clairvoyant "0.0-43-ga703f4e"]
 ```
 
 This library is alpha quality.
@@ -31,12 +31,14 @@ Check your JavaScript console and look for a grouped message titled
 
 ```
 ▾ bindings
-|  ▾ x = 1
+|  ▾ x 1
 |  | 1
-|  ▾ y = 2
+|  ▾ y 2
 |  | 2
-▸  3
+▸  => 3
 ```
+
+For convenience you may omit the options map to `trace-forms`.
 
 ## Design
 
@@ -127,6 +129,16 @@ error.
  :error AssertionError
  ...}
 ```
+
+#### Custom tracers
+
+To create a custom tracer implement at least one of the protocols for
+the trace life cycle. The source for `clairvoyant.core/default-tracer`
+can be used as a reference point. Remember, the behavior of a tracer
+is not necessarily tied to logging to the console or printing to the
+screen. Since the trace values are just data the barrier to creativity
+is low.
+
 
 ### Source code transformation
 
