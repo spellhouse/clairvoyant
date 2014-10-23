@@ -312,7 +312,7 @@
   (let [trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)}]
-    `(~op ~@(trace-reify-body body trace-data env))))
+    `(~op ~@(trace-protocol-specs body trace-data env))))
 
 
 ;;;; extend-type
