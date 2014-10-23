@@ -7,7 +7,7 @@ Clairvoyant is a library that offers flexible tracing for ClojureScript.
 Add Clairvoyant to your project `:dependencies`.
 
 ```clj
-[spellhouse/clairvoyant "0.0-43-ga703f4e"]
+[spellhouse/clairvoyant "0.0-46-g876ac46"]
 ```
 
 This library is alpha quality.
