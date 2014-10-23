@@ -263,6 +263,11 @@
 ;; ---------------------------------------------------------------------
 ;; Protocol specs
 
+(def skip-protocol?
+  ;; Tracing IPrintWithWriter can result in situations where the maximum
+  ;; call stack is exceeded, so we avoid it.
+  '#{IPrintWithWriter})
+
 (defn trace-protocol-spec
   [spec-form trace-data env]
   (let [[name arglist & body] spec-form
@@ -272,19 +277,21 @@
                      :arglist `'~arglist)]
     (cons name (trace-fn-spec arglist body trace-data env))))
 
-(defn trace-reify-body
-  [reify-body trace-data env]
-  (let [impls (partition-all 2 (partition-by symbol? reify-body))]
+(defn trace-protocol-specs
+  [protocol-specs trace-data env]
+  (let [impls (partition-all 2 (partition-by symbol? protocol-specs))]
     (doall (mapcat
             (fn [protos+specs]
               (let [protos (first protos+specs)
                     proto (last protos)
-                    specs (second protos+specs)
-                    trace-data (assoc trace-data
-                                 :protocol `'~(resolve-sym proto env))
-                    specs (doall (for [spec specs]
-                                   (trace-protocol-spec spec trace-data env)))]
-                `(~@protos ~@specs)))
+                    specs (second protos+specs)]
+                (if (skip-protocol? proto)
+                  `(~@protos ~@specs)
+                  (let [trace-data (assoc trace-data
+                                     :protocol `'~(resolve-sym proto env))
+                        specs (doall (for [spec specs]
+                                       (trace-protocol-spec spec trace-data env)))]
+                    `(~@protos ~@specs)))))
             impls))))
 
 
@@ -305,7 +312,7 @@
   (let [trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)}]
-    `(~op ~type ~@(trace-reify-body specs trace-data env))))
+    `(~op ~type ~@(trace-protocol-specs specs trace-data env))))
 
 
 ;;;; extend-protocol
@@ -315,7 +322,7 @@
   (let [trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)}
-        fake-specs (trace-reify-body
+        fake-specs (trace-protocol-specs
                     (for [x specs]
                       (if (symbol? x)
                         proto
@@ -343,3 +350,34 @@
                        :else
                        (seq new-specs)))]
     `(~op ~(resolve-sym proto env) ~@real-specs)))
+
+
+;;; deftype
+
+;; NOTE: Unfortunately, there does not seem to be a way to trace object
+;; construction. This is apparently due to the way JavaScript's `new`
+;; operator behaves.
+
+(defmethods trace-form [`deftype 'deftype]
+  [[op tsym fields & specs :as form] env]
+  (let [trace-data `{:op '~op
+                     :form '~form
+                     :ns '~(.-name *ns*)}
+        new-specs (trace-protocol-specs specs trace-data env)]
+    `(do (~op ~tsym ~fields ~@new-specs)
+         ~(trace-ctor form env))))
+
+
+;;; defrecord
+
+;; NOTE: We only trace the protocols which were implemented by the
+;; programmer not the ones provided by defrecord. Perhaps this could
+;; be configured?
+
+(defmethods trace-form [`defrecord 'defrecord]
+  [[op tsym fields & specs :as form] env]
+  (let [trace-data `{:op '~op
+                     :form '~form
+                     :ns '~(.-name *ns*)}
+        new-specs (trace-protocol-specs specs trace-data env)]
+    `(~op ~tsym ~fields ~@new-specs)))

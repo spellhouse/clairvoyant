@@ -54,7 +54,7 @@
   "
   [f]
   (let [[_ name sig] (re-find fn-re (str f))
-        arglist (mapv symbol (.split sig ","))]
+        arglist (mapv symbol (.split (str sig) ","))]
     (if name
       (list 'fn (symbol name) arglist)
       (list 'fn arglist))))
@@ -82,6 +82,10 @@
                         `defn
                         'defmethod
                         `defmethod
+                        'deftype
+                        `deftype
+                        'defrecord
+                        `defrecord
                         'reify
                         `reify
                         'let
