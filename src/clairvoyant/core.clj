@@ -118,7 +118,9 @@
          (try
            (f#)
            (catch js/Object e#
-             (trace-error ~*tracer* (assoc trace-data# :error e#))
+             (trace-error ~*tracer* (assoc trace-data#
+                                      :error e#
+                                      :ex-data (ex-data e#)))
              (throw e#)))
          (f#)))))
 

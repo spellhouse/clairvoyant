@@ -133,12 +133,26 @@
              (.groupEnd js/console))))
 
       ITraceError
-      (-trace-error [_ {:keys [op form error]}]
+      (-trace-error [_ {:keys [op form error ex-data]}]
         (cond
          (#{'binding} op)
-         (.error js/console (.-stack error))
+         (do
+           (.error js/console (.-stack error))
+           (when ex-data
+             (.groupCollapsed js/console "ex-data")
+             (.groupCollapsed js/console (pr-val ex-data))
+             (.log js/console ex-data)
+             (.groupEnd js/console)
+             (.groupEnd js/console)))
 
          (has-bindings? op)
          (do (.groupEnd js/console)
-             (.error js/console (.-stack error))
+             (do
+               (.error js/console (.-stack error))
+               (when ex-data
+                 (.groupCollapsed js/console "ex-data")
+                 (.groupCollapsed js/console (pr-val ex-data))
+                 (.log js/console ex-data)
+                 (.groupEnd js/console)
+                 (.groupEnd js/console)))
              (.groupEnd js/console)))))))
