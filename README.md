@@ -43,8 +43,8 @@ For convenience you may omit the options map to `trace-forms`.
 Clairvoyant is based on two concepts: tracers and source code
 transformation. Although this is not a dramatic departure from similar
 tools, Clairvoyant maintains an emphasis on extensibility which affords
-the programmer finer control over the tracing proccess. This
-extensibility is provided by Clojure's protocols and mulitmethods.
+the programmer finer control over the tracing process. This
+extensibility is provided by Clojure's protocols and multimethods.
 
 
 ### Tracers
@@ -56,7 +56,7 @@ a trace begins, when an error is encountered, and when a trace has
 ended. The locations of these points may vary from form to form but in
 general they're positioned to strategically.
 
-At each point in the trace the tracer will recieve data in the form of
+At each point in the trace the tracer will receive data in the form of
 a map containing at the least the following information.
 
  Key     | Description                      | Example
