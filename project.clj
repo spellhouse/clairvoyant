@@ -17,6 +17,32 @@
   [[org.clojure/clojure "1.6.0" :scope "provided"]
    [org.clojure/clojurescript "0.0-2322" :scope "provided"]]
 
+  :clean-targets 
+  ^{:protect false} ["dev-resources/public/out"
+                     "resources/public/out"
+                     "target"]
+
+  :cljsbuild 
+  {:builds 
+   {:app {:source-paths ["src"]
+          :compiler     
+          {:output-to "dev-resources/public/clairvoyant.js"
+           :output-dir "dev-resources/public/out/"
+           :optimizations :none
+           :pretty-print true}}}}
+
+  :aliases
+  {"auto-build" ~(clojure.string/split
+                   "do cljsbuild clean, cljsbuild auto"
+                   #"\s+")}
+
+  :release-tasks 
+  [["clean"]
+   ["with-profiles" 
+    "-dev,+release" 
+    "cljsbuild" "once"]
+   ["jar"]]
+
   :profiles
   {:dev
    {:dependencies
@@ -27,21 +53,21 @@
     [[lein-cljsbuild "1.0.3"]]
 
     :source-paths
-    ["src" "dev"]
+    ["dev"]
 
-    :repl-options
-    {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}}}
+    :repl-options 
+    {:nrepl-middleware 
+     [cemerick.piggieback/wrap-cljs-repl]}
 
-  :aliases
-  {"auto-build" ~(clojure.string/split
-                  "do cljsbuild clean, cljsbuild auto"
-                  #"\s+")}
+    :cljsbuild
+    {:builds {:app {:source-paths ["dev"]}}}}
 
-  :cljsbuild
-  {:builds [{:id "dev"
-             :source-paths ["src" "dev"]
-             :compiler {:output-to "resources/public/clairvoyant.js"
-                        :output-dir "resources/public/out"
-                        :optimizations :none
-                        :source-map true
-                        :pretty-print true}}]})
+   :release 
+   {:cljsbuild 
+    {:jar true
+     :builds 
+     {:app {:compiler 
+            {:output-to "resources/public/clairvoyant.js"
+             :output-dir    "resources/public/out/"
+             :optimizations :advanced
+             :pretty-print  false}}}}}})
