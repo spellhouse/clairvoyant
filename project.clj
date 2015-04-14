@@ -44,12 +44,12 @@
    ["jar"]]
 
   :profiles
-  {:dev     
+  {:dev
    {:dependencies
     [[com.cemerick/piggieback "0.1.3"]
      [weasel "0.4.0-SNAPSHOT"]]
 
-    :plugins 
+    :plugins
     [[lein-cljsbuild "1.0.3"]]
 
     :source-paths
