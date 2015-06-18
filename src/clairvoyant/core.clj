@@ -72,26 +72,32 @@
                    (trace-form x env))))
     form))
 
+(defmacro dev?
+  "True if assertions are enabled."
+  []
+  (if *assert* true false))
 
 (defmacro trace-forms
   "Recursively trace one or more forms."
   {:arglists '([& forms] [{:keys [tracer]} & forms])}
   [& forms]
-  (let [opts (when (and (map? (first forms))
-                        (contains? (first forms) :tracer))
-               (first forms)) 
-        forms (if opts
-                (next forms)
-                forms)
-        tracer (if-let [tracer (:tracer opts)]
-                 tracer
-                 (if-let [tracer (:clairvoyant/tracer (meta *ns*))]
+  (if (dev?) 
+    (let [opts (when (and (map? (first forms))
+                          (contains? (first forms) :tracer))
+                 (first forms)) 
+          forms (if opts
+                  (next forms)
+                  forms)
+          tracer (if-let [tracer (:tracer opts)]
                    tracer
-                   'clairvoyant.core/default-tracer))]
-    (binding [*tracer* tracer]
-      (let [traced-forms (doall (for [form forms]
-                                  (trace-form form &env)))]
-        `(do ~@traced-forms)))))
+                   (if-let [tracer (:clairvoyant/tracer (meta *ns*))]
+                     tracer
+                     'clairvoyant.core/default-tracer))]
+      (binding [*tracer* tracer]
+        (let [traced-forms (doall (for [form forms]
+                                    (trace-form form &env)))]
+          `(do ~@traced-forms))))
+      `(do ~@forms)))
 
 
 ;; ---------------------------------------------------------------------
@@ -392,3 +398,4 @@
                      :ns '~(.-name *ns*)}
         new-specs (trace-protocol-specs specs trace-data env)]
     `(~op ~tsym ~fields ~@new-specs)))
+
