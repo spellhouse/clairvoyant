@@ -1,4 +1,5 @@
-(ns clairvoyant.core)
+(ns clairvoyant.core
+  (:require [clojure.walk :refer [prewalk]]))
 
 ;; ---------------------------------------------------------------------
 ;; Protocols
@@ -62,9 +63,16 @@
 
 (def default-tracer
   (let [pr-val (fn [x]
-                 (if (fn? x)
+                 (cond 
+                   (fn? x) 
                    (pr-str (fn-signature x))
-                   (pr-str x)))
+                   (coll? x)
+                   (pr-str (prewalk (fn [x]
+                                            (if (fn? x)
+                                              (fn-signature x)
+                                              x)) 
+                                          x))
+                   :else (pr-str x)))
         log-binding (fn [form init]
                       (.groupCollapsed js/console "%c%s %c%s"
                                        "font-weight:bold;"
