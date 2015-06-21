@@ -63,15 +63,15 @@
 
 (def default-tracer
   (let [pr-val (fn [x]
+                 (if (fn? x)
+                   (fn-signature x)
+                   x))
+        pr-val (fn [x]
                  (cond 
                    (fn? x) 
                    (pr-str (fn-signature x))
                    (coll? x)
-                   (pr-str (prewalk (fn [x]
-                                            (if (fn? x)
-                                              (fn-signature x)
-                                              x)) 
-                                          x))
+                   (pr-str (prewalk pr-val x))
                    :else (pr-str x)))
         log-binding (fn [form init]
                       (.groupCollapsed js/console "%c%s %c%s"
