@@ -62,7 +62,7 @@
 
 
 (def default-tracer
-  (let [pr-val (fn [x]
+  (let [pr-val (fn pr-val [x]
                  (if (fn? x)
                    (fn-signature x)
                    x))
