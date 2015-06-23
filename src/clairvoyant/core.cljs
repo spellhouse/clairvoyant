@@ -60,7 +60,11 @@
       (list 'fn (symbol name) arglist)
       (list 'fn arglist))))
 
-(defn make-tracer 
+(defn make-tracer
+  "makes a tracer given parameters
+    - str-fn if true uses pr-str to format values
+    - log-to-console if true also logs values directly to console
+    - shorten-fns if true functions are found and shortened for printing"
   [str-fn log-to-console shorten-fns]
   (let [pr-val* (fn pr-val* [x]
                   (cond 
@@ -71,17 +75,27 @@
                     (coll? x)
                     (walk pr-val* identity x)
                     :else x))
-        pr-val (fn [x] (str-fn (pr-val* x)))
+        pr-val (fn [x] (if str-fn
+                         (pr-str (pr-val* x))
+                         (pr-val* x)))
         log-binding (fn [form init]
-                      (.groupCollapsed js/console "%c%s"
-                                       "font-weight:bold;"
-                                       (pr-str form)
-                                       (pr-val init)))
+                      (if str-fn 
+                        (.groupCollapsed js/console "%c%s %c%s"
+                                         "font-weight:bold;"
+                                         (pr-str form)
+                                         "font-weight:normal;"
+                                         (pr-val init))
+                        (.groupCollapsed js/console "%c%s"
+                                         "font-weight:bold;"
+                                         (pr-str form)
+                                         (pr-val init))))
         log-exit (fn [exit]
-                   (.groupCollapsed js/console "=>" (pr-val exit))
-                   (when log-to-console 
-                     (.log js/console exit))
-                   (.groupEnd js/console))
+                   (if log-to-console
+                     (do
+                       (.groupCollapsed js/console "=>" (pr-val exit))
+                       (.log js/console exit)
+                       (.groupEnd js/console))
+                     (.log js/console "=>" (pr-val exit))))
         has-bindings? #{'fn*
                         `fn
                         'fn
@@ -165,7 +179,7 @@
              (.groupEnd js/console)))))))
 
 (def default-tracer 
-  (make-tracer prn-str true true))
+  (make-tracer true true true))
 
 (def cljs-devtools-tracer 
-  (make-tracer identity false false))
+  (make-tracer false false false))
