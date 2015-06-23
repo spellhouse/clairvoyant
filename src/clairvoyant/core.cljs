@@ -60,25 +60,27 @@
       (list 'fn (symbol name) arglist)
       (list 'fn arglist))))
 
-
-(def default-tracer
+(defn make-tracer 
+  [str-fn log-to-console shorten-fns]
   (let [pr-val* (fn pr-val* [x]
-                            (cond 
-                              (fn? x) 
-                              (fn-signature x)
-                              (coll? x)
-                              (walk pr-val* identity x)
-                              :else x))
-        pr-val (fn [x] (pr-str (pr-val* x)))
+                  (cond 
+                    (fn? x) 
+                    (if shorten-fns 
+                      (fn-signature x)
+                      x)
+                    (coll? x)
+                    (walk pr-val* identity x)
+                    :else x))
+        pr-val (fn [x] (str-fn (pr-val* x)))
         log-binding (fn [form init]
-                      (.groupCollapsed js/console "%c%s %c%s"
+                      (.groupCollapsed js/console "%c%s"
                                        "font-weight:bold;"
                                        (pr-str form)
-                                       "font-weight:normal;"
                                        (pr-val init)))
         log-exit (fn [exit]
                    (.groupCollapsed js/console "=>" (pr-val exit))
-                   (.log js/console exit)
+                   (when log-to-console 
+                     (.log js/console exit))
                    (.groupEnd js/console))
         has-bindings? #{'fn*
                         `fn
@@ -161,3 +163,9 @@
                  (.groupEnd js/console)
                  (.groupEnd js/console)))
              (.groupEnd js/console)))))))
+
+(def default-tracer 
+  (make-tracer prn-str true true))
+
+(def cljs-devtools-tracer 
+  (make-tracer identity false false))
