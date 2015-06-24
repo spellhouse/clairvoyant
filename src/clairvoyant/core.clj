@@ -97,7 +97,7 @@
         (let [traced-forms (doall (for [form forms]
                                     (trace-form form &env)))]
           `(do ~@traced-forms))))
-      `(do ~@forms)))
+    `(do ~@forms)))
 
 
 ;; ---------------------------------------------------------------------
