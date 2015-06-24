@@ -60,6 +60,7 @@
       (list 'fn (symbol name) arglist)
       (list 'fn arglist))))
 
+
 (def default-tracer
   (let [pr-val* (fn pr-val* [x]
                             (cond 
@@ -70,10 +71,10 @@
                               :else x))
         pr-val (fn [x] (pr-str (pr-val* x)))
         log-binding (fn [form init]
-                      (.groupCollapsed js/console "%c%s %c%s" 
-                                       "font-weight:bold;" 
+                      (.groupCollapsed js/console "%c%s %c%s"
+                                       "font-weight:bold;"
                                        (pr-str form)
-                                       "font-weight:normal;" 
+                                       "font-weight:normal;"
                                        (pr-val init)))
         log-exit (fn [exit]
                    (.groupCollapsed js/console "=>" (pr-val exit))
