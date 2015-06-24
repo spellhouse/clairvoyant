@@ -62,21 +62,23 @@
 
 (def default-tracer
   (let [pr-val* (fn pr-val* [x]
-                  (cond 
-                    (fn? x) 
-                    (fn-signature x)
-                    (coll? x)
-                    (walk pr-val* identity x)
-                    :else x))
+                            (cond 
+                              (fn? x) 
+                              (fn-signature x)
+                              (coll? x)
+                              (walk pr-val* identity x)
+                              :else x))
         pr-val (fn [x] (pr-str (pr-val* x)))
         log-binding (fn [form init]
-                        (.groupCollapsed js/console "%c%s %c%s" 
-                                            "font-weight:bold;" (pr-str form)
-                                            "font-weight:normal;" (pr-val init)))
+                      (.groupCollapsed js/console "%c%s %c%s" 
+                                       "font-weight:bold;" 
+                                       (pr-str form)
+                                       "font-weight:normal;" 
+                                       (pr-val init)))
         log-exit (fn [exit]
-                       (.groupCollapsed js/console "=>" (pr-val exit))
-                       (.log js/console exit)
-                       (.groupEnd js/console))
+                   (.groupCollapsed js/console "=>" (pr-val exit))
+                   (.log js/console exit)
+                   (.groupEnd js/console))
         has-bindings? #{'fn*
                         `fn
                         'fn
@@ -163,8 +165,8 @@
   (let [pr-val (fn pr-val [x] x)
         log-binding (fn [form init]
                       (.groupCollapsed js/console "%c%s"
-                                        "font-weight:bold;" (pr-str form)
-                                        (pr-val init)))
+                                       "font-weight:bold;" (pr-str form)
+                                       (pr-val init)))
         log-exit (fn [exit]
                    (.log js/console "=>" (pr-val exit)))
         has-bindings? #{'fn*
