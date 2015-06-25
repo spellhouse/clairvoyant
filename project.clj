@@ -1,13 +1,13 @@
 (require '[clojure.java.shell])
 (require '[clojure.string])
 
-(def VERSION
-  (do (-> (clojure.java.shell/sh "git" "describe" "--match" "v0.0")
+(def VERSION "0.1.0-SNAPSHOT"
+  #_(do (-> (clojure.java.shell/sh "git" "describe" "--match" "v0.0")
           (:out)
           (.trim)
           (subs 1))))
 
-(defproject spellhouse/clairvoyant VERSION
+(defproject org.clojars.stumitchell/clairvoyant VERSION
   :description "ClojureScript tracing library"
   :url "http://github.com/spellhouse/clairvoyant"
   :license {:name "Eclipse Public License"
