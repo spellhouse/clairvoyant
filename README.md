@@ -147,6 +147,15 @@ form containing the tracer hook points. To ensure a high level of control
 Clairvoyant avoids macroexpansion. This is important because it allows the
 programmer to trace any form they wish rather than just the special forms.
 
+#### Conditional tracing
+
+If you want to remove tracing on production builds, 
+`clairvoyant.core/trace-forms` will not add tracing when the `:elide-asserts`
+option (under `:compiler` options in your `project.clj` file) is set to true.
+Therefore if you set this option in your prod builds you do not need to remove 
+`clairvoyant.core/trace-forms` from your source. This technique was taken from
+the [reagent project](https://github.com/reagent-project/reagent)
+
 ## Trace data
 
 ### `defn`, `fn`, `fn*`
