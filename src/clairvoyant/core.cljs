@@ -1,8 +1,6 @@
 (ns clairvoyant.core
   (:require [clojure.walk :refer [prewalk walk]]))
 
-(defn dev? []
-  ^:boolean js/goog.DEBUG)
 ;; ---------------------------------------------------------------------
 ;; Protocols
 
