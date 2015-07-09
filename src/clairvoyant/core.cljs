@@ -85,6 +85,8 @@
                         'fn
                         'defn
                         `defn
+                        'defn-
+                        `defn-
                         'defmethod
                         `defmethod
                         'deftype
