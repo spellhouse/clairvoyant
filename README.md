@@ -137,6 +137,10 @@ is not necessarily tied to logging to the console or printing to the
 screen. Since the trace values are just data the barrier to creativity
 is low.
 
+An additional tracer that works well with [cljs-devtools]
+(https://github.com/binaryage/cljs-devtools) is included as 
+`clairvoyant.core/cljs-devtools-tracer`.
+
 
 ### Source code transformation
 
