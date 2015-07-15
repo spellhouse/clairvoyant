@@ -164,7 +164,8 @@
                  (.groupEnd js/console)))
              (.groupEnd js/console)))))))
 
-(def cljs-devtools-tracer 
+(defn cljs-devtools-tracer 
+  [& {:keys [color] :as options}]
   (let [pr-val (fn pr-val [x] x)
         log-binding (fn [form init]
                       (.groupCollapsed js/console "%c%s"
@@ -177,6 +178,8 @@
                         'fn
                         'defn
                         `defn
+                        'defn-
+                        `defn-
                         'defmethod
                         `defmethod
                         'deftype
@@ -206,7 +209,7 @@
                              (str " " arglist)
                              (when anonymous? " (anonymous)")))
                 arglist (remove '#{&} arglist)]
-            (.groupCollapsed js/console title)
+            (.groupCollapsed js/console "%c%s" (str "color:" color ";") title)
             (.groupCollapsed js/console "bindings"))
           
           (#{'let `let} op)
