@@ -259,7 +259,7 @@
                        (trace-fn-spec arglist body trace-data env)))]
     `(def ~name (fn ~@specs))))
 
-(defmethods trace-form ['defn `defn]
+(defmethods trace-form ['defn `defn 'defn- `defn-]
   [form env]
   (trace-defn form env))
 
