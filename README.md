@@ -150,11 +150,15 @@ programmer to trace any form they wish rather than just the special forms.
 #### Conditional tracing
 
 If you want to remove tracing on production builds, 
-`clairvoyant.core/trace-forms` will not add tracing when the `:elide-asserts`
-option (under `:compiler` options in your `project.clj` file) is set to true.
-Therefore if you set this option in your prod builds you do not need to remove 
-`clairvoyant.core/trace-forms` from your source. This technique was taken from
-the [reagent project](https://github.com/reagent-project/reagent)
+`clairvoyant.core/trace-forms` will not add tracing when `js/goog.DEBUG`
+is set to false this requires `:closure-defines {:goog.DEBUG false}`
+option (under `:compiler` options in your `project.clj` file).
+Therefore if you set this option in your prod builds you do not need to
+remove `clairvoyant.core/trace-forms` from your source. 
+
+WARNING: to set this option you do need to have `:optimizations :simple`
+or `optimizations :advanced` or else the value will not be set because
+the closure compiler does not do the substitution.
 
 ## Trace data
 

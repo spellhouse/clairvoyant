@@ -72,16 +72,19 @@
                    (trace-form x env))))
     form))
 
-(defmacro dev?
-  "True if assertions are enabled."
-  []
-  (if *assert* true false))
+; (defmacro dev?
+;   "True if assertions are enabled."
+;   []
+;   (if *assert* true false))
+
+(def dev?
+   "True if assertions are enabled."
+   (vary-meta 'js/goog.DEBUG assoc :tag 'boolean))
 
 (defmacro trace-forms
   "Recursively trace one or more forms."
   {:arglists '([& forms] [{:keys [tracer]} & forms])}
   [& forms]
-  (if (dev?) 
     (let [opts (when (and (map? (first forms))
                           (contains? (first forms) :tracer))
                  (first forms)) 
@@ -96,8 +99,9 @@
       (binding [*tracer* tracer]
         (let [traced-forms (doall (for [form forms]
                                     (trace-form form &env)))]
-          `(do ~@traced-forms))))
-    `(do ~@forms)))
+          `(if ~dev?
+             (do ~@traced-forms)
+             (do ~@forms))))))
 
 
 ;; ---------------------------------------------------------------------
