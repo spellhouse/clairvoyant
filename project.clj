@@ -14,8 +14,8 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
   :dependencies
-  [[org.clojure/clojure "1.6.0" :scope "provided"]
-   [org.clojure/clojurescript "0.0-2322" :scope "provided"]]
+  [[org.clojure/clojure "1.7.0" :scope "provided"]
+   [org.clojure/clojurescript "1.7.170" :scope "provided"]]
 
   :clean-targets
   ^{:protect false} ["dev-resources/public/out"
