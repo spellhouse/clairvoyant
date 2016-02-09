@@ -35,7 +35,9 @@
   (-trace-exit tracer trace-data))
 
 ;; ---------------------------------------------------------------------
-;; Core tracers 
+;; Core tracers
+
+(goog-define devmode false)
 
 (def ^:private fn-re
   "Matches the function signature of the result of (str f) where f is a
@@ -63,8 +65,8 @@
 
 (def default-tracer
   (let [pr-val* (fn pr-val* [x]
-                            (cond 
-                              (fn? x) 
+                            (cond
+                              (fn? x)
                               (fn-signature x)
                               (coll? x)
                               (walk pr-val* identity x)
@@ -118,7 +120,7 @@
                arglist (remove '#{&} arglist)]
            (.groupCollapsed js/console title)
            (.groupCollapsed js/console "bindings"))
-         
+
          (#{'let `let} op)
          (let [title (str op)]
            (.groupCollapsed js/console title)
@@ -164,7 +166,7 @@
                  (.groupEnd js/console)))
              (.groupEnd js/console)))))))
 
-(defn cljs-devtools-tracer 
+(defn cljs-devtools-tracer
   [& {:keys [color] :as options}]
   (let [pr-val (fn pr-val [x] x)
         log-binding (fn [form init]
@@ -211,27 +213,27 @@
                 arglist (remove '#{&} arglist)]
             (.groupCollapsed js/console "%c%s" (str "color:" color ";") title)
             (.groupCollapsed js/console "bindings"))
-          
+
           (#{'let `let} op)
           (let [title (str op)]
             (.groupCollapsed js/console title)
             (.groupCollapsed js/console "bindings"))
-          
+
           (#{'binding} op)
           (log-binding form init)))
-      
+
       ITraceExit
       (-trace-exit [_ {:keys [op exit]}]
                    (cond
                      (#{'binding} op)
                      (do (log-exit exit)
                        (.groupEnd js/console))
-                     
+
                      (has-bindings? op)
                      (do (.groupEnd js/console)
                        (log-exit exit)
                        (.groupEnd js/console))))
-      
+
       ITraceError
       (-trace-error [_ {:keys [op form error ex-data]}]
                     (cond
@@ -243,7 +245,7 @@
                           (.groupCollapsed js/console (pr-val ex-data))
                           (.groupEnd js/console)
                           (.groupEnd js/console)))
-                      
+
                       (has-bindings? op)
                       (do (.groupEnd js/console)
                         (do

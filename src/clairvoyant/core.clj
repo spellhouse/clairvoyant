@@ -20,7 +20,7 @@
 
 
 (defn ^:private debug-form
-  "Throw an exception containing a pretty printed form. Only useful for 
+  "Throw an exception containing a pretty printed form. Only useful for
   debugging macros in ClojureScript."
   [form]
   (throw (Exception. (with-out-str (pprint/pprint form)))))
@@ -78,8 +78,8 @@
 ;   (if *assert* true false))
 
 (def dev?
-   "True if assertions are enabled."
-   (vary-meta 'js/goog.DEBUG assoc :tag 'boolean))
+  "True if assertions are enabled."
+  (vary-meta 'js/clairvoyant.core.devmode assoc :tag 'boolean))
 
 (defmacro trace-forms
   "Recursively trace one or more forms."
@@ -87,7 +87,7 @@
   [& forms]
     (let [opts (when (and (map? (first forms))
                           (contains? (first forms) :tracer))
-                 (first forms)) 
+                 (first forms))
           forms (if opts
                   (next forms)
                   forms)
@@ -191,7 +191,7 @@
            (vector? (:post x)))))
 
 (defn condition-map-and-body
-  "Given a function body, return a vetor of the condition map and 
+  "Given a function body, return a vetor of the condition map and
   the function body."
   [fn-body]
   (let [[x & body] fn-body]
@@ -249,7 +249,7 @@
   [[op & body :as form] env]
   (let [[_ name] (macroexpand-1 form)
         [_ fn-body] (split-with (complement coll?) form)
-        [_ & fn-specs] (macroexpand-1 `(fn ~@fn-body)) 
+        [_ & fn-specs] (macroexpand-1 `(fn ~@fn-body))
         trace-data `{:op '~op
                      :form '~form
                      :ns '~(.-name *ns*)
