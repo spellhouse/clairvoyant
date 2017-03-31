@@ -83,25 +83,39 @@
 
 (defmacro trace-forms
   "Recursively trace one or more forms."
-  {:arglists '([& forms] [{:keys [tracer]} & forms])}
+  {:arglists '([& forms] [{:keys [tracer enabled]} & forms])}
   [& forms]
-  (let [opts   (when (and (map? (first forms))
-                          (contains? (first forms) :tracer))
-                 (first forms))
-        forms  (if opts
-                 (next forms)
-                 forms)
-        tracer (if-let [tracer (:tracer opts)]
-                 tracer
-                 (if-let [tracer (:clairvoyant/tracer (meta *ns*))]
+  (let [opts     (when (and (map? (first forms))
+                            (or (contains? (first forms) :tracer)
+                                (contains? (first forms) :enabled)))
+                   (first forms))
+        forms    (if opts
+                   (next forms)
+                   forms)
+        tracer   (if-let [tracer (:tracer opts)]
                    tracer
-                   'clairvoyant.core/default-tracer))]
+                   (if-let [tracer (:clairvoyant/tracer (meta *ns*))]
+                     tracer
+                     'clairvoyant.core/default-tracer))
+        enabled? (:enabled opts)]
     (binding [*tracer* tracer]
       (let [traced-forms (doall (for [form forms]
                                   (trace-form form &env)))]
-        `(if ~dev?
-           (do ~@traced-forms)
-           (do ~@forms))))))
+        (cond (nil? enabled?)
+              `(if ~dev?
+                 (do ~@traced-forms)
+                 (do ~@forms))
+
+              (= enabled? false)
+              `(do ~@forms)
+
+              (= enabled? true)
+              `(do ~@traced-forms)
+
+              :else
+              `(if ~enabled?
+                 (do ~@traced-forms)
+                 (do ~@forms)))))))
 
 
 ;; ---------------------------------------------------------------------
