@@ -52,6 +52,7 @@
 ;; API
 
 (def ^:dynamic *tracer*)
+(def ^:dynamic *excluded-ops*)
 
 
 (defmulti trace-form
@@ -59,14 +60,17 @@
   (fn [form env]
     (if (and (seq? form)
              (symbol? (first form)))
-      (let [[op & rest] form]
-        op)
+      (if (contains? *excluded-ops* (first form))
+        ::default
+        (let [[op & rest] form]
+          op))
       form))
   :default ::default)
 
 (defmethod trace-form ::default
   [form env]
-  (if (seq? form)
+  (if (and (seq? form)
+           (not (contains? *excluded-ops* (first form))))
     (cons (first form)
           (doall (for [x (rest form)]
                    (trace-form x env))))
@@ -85,13 +89,16 @@
   "Recursively trace one or more forms.
 
   :tracer - custom tracer
-  :enabled - boolean, override devmode flags and force tracing on/off"
-  {:arglists '([& forms] [{:keys [tracer enabled]} & forms])}
+  :enabled - boolean, override devmode flags and force tracing on/off
+  :excluded - set of symbols to exclude from tracing, e.g. #{'fn 'fn*}"
+  {:arglists '([& forms] [{:keys [tracer enabled exclude]} & forms])}
   [& forms]
-  (let [opts     (when (and (map? (first forms))
-                            (or (contains? (first forms) :tracer)
-                                (contains? (first forms) :enabled)))
-                   (first forms))
+  (let [opts     (let [maybe-opts (first forms)]
+                   (when (and (map? maybe-opts)
+                              (or (contains? maybe-opts :tracer)
+                                  (contains? maybe-opts :enabled)
+                                  (contains? maybe-opts :exclude)))
+                     maybe-opts))
         forms    (if opts
                    (next forms)
                    forms)
@@ -101,7 +108,12 @@
                      tracer
                      'clairvoyant.core/default-tracer))
         enabled? (:enabled opts)]
-    (binding [*tracer* tracer]
+    (binding [*tracer*       tracer
+              *excluded-ops* (if-let [excluded (:exclude opts)]
+                               (->> excluded
+                                    (map #(symbol (last %)))
+                                    (set))
+                               #{})]
       (let [traced-forms (doall (for [form forms]
                                   (trace-form form &env)))]
         (cond (nil? enabled?)
