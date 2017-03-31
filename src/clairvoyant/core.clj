@@ -82,7 +82,10 @@
   (vary-meta 'js/clairvoyant.core.devmode assoc :tag 'boolean))
 
 (defmacro trace-forms
-  "Recursively trace one or more forms."
+  "Recursively trace one or more forms.
+
+  :tracer - custom tracer
+  :enabled - boolean, override devmode flags and force tracing on/off"
   {:arglists '([& forms] [{:keys [tracer enabled]} & forms])}
   [& forms]
   (let [opts     (when (and (map? (first forms))
