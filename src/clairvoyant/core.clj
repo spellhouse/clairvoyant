@@ -10,7 +10,7 @@
 
 (defmacro
   ^{:private true
-    :doc "Define one or more methods with the same fn-tail."}
+    :doc     "Define one or more methods with the same fn-tail."}
   defmethods
   [multifn dispatch-vals & fn-body]
   {:pre [(vector? dispatch-vals)]}
@@ -42,7 +42,7 @@
       resolved
       sym)
     (if-let [resolved (resolve sym)]
-      (let [sym (.sym resolved)
+      (let [sym     (.sym resolved)
             ns-name (.. resolved ns name)]
         (symbol (str ns-name) (str sym)))
       sym)))
@@ -85,23 +85,23 @@
   "Recursively trace one or more forms."
   {:arglists '([& forms] [{:keys [tracer]} & forms])}
   [& forms]
-    (let [opts (when (and (map? (first forms))
+  (let [opts   (when (and (map? (first forms))
                           (contains? (first forms) :tracer))
                  (first forms))
-          forms (if opts
-                  (next forms)
-                  forms)
-          tracer (if-let [tracer (:tracer opts)]
+        forms  (if opts
+                 (next forms)
+                 forms)
+        tracer (if-let [tracer (:tracer opts)]
+                 tracer
+                 (if-let [tracer (:clairvoyant/tracer (meta *ns*))]
                    tracer
-                   (if-let [tracer (:clairvoyant/tracer (meta *ns*))]
-                     tracer
-                     'clairvoyant.core/default-tracer))]
-      (binding [*tracer* tracer]
-        (let [traced-forms (doall (for [form forms]
-                                    (trace-form form &env)))]
-          `(if ~dev?
-             (do ~@traced-forms)
-             (do ~@forms))))))
+                   'clairvoyant.core/default-tracer))]
+    (binding [*tracer* tracer]
+      (let [traced-forms (doall (for [form forms]
+                                  (trace-form form &env)))]
+        `(if ~dev?
+           (do ~@traced-forms)
+           (do ~@forms))))))
 
 
 ;; ---------------------------------------------------------------------
@@ -110,7 +110,7 @@
 (defn trace-body
   "Given a form and trace data, return the form for a trace life cycle."
   [form trace-data]
-  `(let [trace-data# ~trace-data] ;; Cache the initial trace data.
+  `(let [trace-data# ~trace-data]                           ;; Cache the initial trace data.
      (when (satisfies? ITraceEnter ~*tracer*)
        (trace-enter ~*tracer* trace-data#))
      (let [;; Creating a nullary function adds an extra call but reduces
@@ -129,8 +129,8 @@
            (f#)
            (catch js/Object e#
              (trace-error ~*tracer* (assoc trace-data#
-                                      :error e#
-                                      :ex-data (ex-data e#)))
+                                           :error e#
+                                           :ex-data (ex-data e#)))
              (throw e#)))
          (f#)))))
 
@@ -141,7 +141,7 @@
   (let [quote-init? (not (false? quote-init?))]
     (doall (mapcat
             (fn [[binding form]]
-              (let [trace-data `{:op '~'binding
+              (let [trace-data `{:op   '~'binding
                                  :form '~binding
                                  :init ~(if quote-init? `'~form form)}]
                 `[~binding ~(trace-body (trace-form form env) trace-data)]))
@@ -152,12 +152,12 @@
 
 (defn trace-let
   [[op bindings & body :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op   '~op
                      :form '~form}
-        bindings (trace-bindings bindings env)
-        body (doall (for [form body]
-                      (trace-form form env)))
-        form `(~op ~(vec bindings) ~@body)]
+        bindings   (trace-bindings bindings env)
+        body       (doall (for [form body]
+                            (trace-form form env)))
+        form       `(~op ~(vec bindings) ~@body)]
     (trace-body form trace-data)))
 
 (defmethods trace-form [`let 'let* 'let]
@@ -203,21 +203,21 @@
 (defn trace-fn-spec
   [arglist body trace-data env]
   (let [[condition-map body] (condition-map-and-body body)
-        body (doall (for [form body]
-                      (trace-form form env)))
+        body           (doall (for [form body]
+                                (trace-form form env)))
         munged-arglist (munge-arglist arglist)
-        args (normalize-arglist arglist)
-        munged-args (normalize-arglist munged-arglist)
-        trace-data (assoc trace-data :arglist `'~arglist)
-        bindings (mapcat vector args munged-args)
-        fn-form `(fn ~munged-arglist
-                   (let [~@(trace-bindings bindings env false)]
-                     ((fn []
-                        ~condition-map
-                        ~@body))))
-        form (if (variadic? arglist)
-               `(apply ~fn-form ~@munged-args)
-               `(~fn-form ~@munged-args))]
+        args           (normalize-arglist arglist)
+        munged-args    (normalize-arglist munged-arglist)
+        trace-data     (assoc trace-data :arglist `'~arglist)
+        bindings       (mapcat vector args munged-args)
+        fn-form        `(fn ~munged-arglist
+                          (let [~@(trace-bindings bindings env false)]
+                            ((fn []
+                               ~condition-map
+                               ~@body))))
+        form           (if (variadic? arglist)
+                         `(apply ~fn-form ~@munged-args)
+                         `(~fn-form ~@munged-args))]
     `(~munged-arglist ~(trace-body form trace-data))))
 
 (defn trace-fn
@@ -226,16 +226,16 @@
         [sym specs] (if (symbol? (first body))
                       [(first body) (rest body)]
                       [(gensym "fn_") body])
-        specs (if (every? list? specs)
-                specs
-                (list specs))
-        trace-data `{:op '~op
-                     :form '~form
-                     :ns '~(.-name *ns*)
-                     :name '~sym
+        specs      (if (every? list? specs)
+                     specs
+                     (list specs))
+        trace-data `{:op         '~op
+                     :form       '~form
+                     :ns         '~(.-name *ns*)
+                     :name       '~sym
                      :anonymous? true}
-        specs (doall (for [[arglist & body] specs]
-                       (trace-fn-spec arglist body trace-data env)))]
+        specs      (doall (for [[arglist & body] specs]
+                            (trace-fn-spec arglist body trace-data env)))]
     `(~op ~sym ~@specs)))
 
 (defmethods trace-form [`fn 'fn* 'fn]
@@ -250,13 +250,13 @@
   (let [[_ name] (macroexpand-1 form)
         [_ fn-body] (split-with (complement coll?) form)
         [_ & fn-specs] (macroexpand-1 `(fn ~@fn-body))
-        trace-data `{:op '~op
-                     :form '~form
-                     :ns '~(.-name *ns*)
-                     :name '~name
+        trace-data `{:op         '~op
+                     :form       '~form
+                     :ns         '~(.-name *ns*)
+                     :name       '~name
                      :anonymous? false}
-        specs (doall (for [[arglist & body] fn-specs]
-                       (trace-fn-spec arglist body trace-data env)))]
+        specs      (doall (for [[arglist & body] fn-specs]
+                            (trace-fn-spec arglist body trace-data env)))]
     `(def ~name (fn ~@specs))))
 
 (defmethods trace-form ['defn `defn 'defn- `defn-]
@@ -268,12 +268,12 @@
 
 (defn trace-defmethod
   [[op multifn dispatch-val & [arglist & body] :as form] env]
-  (let [trace-data `{:op '~op
-                     :form '~form
-                     :ns '~(.-name *ns*)
-                     :name '~multifn
+  (let [trace-data `{:op           '~op
+                     :form         '~form
+                     :ns           '~(.-name *ns*)
+                     :name         '~multifn
                      :dispatch-val '~dispatch-val
-                     :arglist '~arglist}]
+                     :arglist      '~arglist}]
     `(defmethod ~multifn ~dispatch-val
        ~@(trace-fn-spec arglist body trace-data env))))
 
@@ -294,9 +294,9 @@
   [spec-form trace-data env]
   (let [[name arglist & body] spec-form
         trace-data (assoc trace-data
-                     :name `'~name
-                     :form `'~spec-form
-                     :arglist `'~arglist)]
+                          :name `'~name
+                          :form `'~spec-form
+                          :arglist `'~arglist)]
     (cons name (trace-fn-spec arglist body trace-data env))))
 
 (defn trace-protocol-specs
@@ -305,14 +305,14 @@
     (doall (mapcat
             (fn [protos+specs]
               (let [protos (first protos+specs)
-                    proto (last protos)
-                    specs (second protos+specs)]
+                    proto  (last protos)
+                    specs  (second protos+specs)]
                 (if (skip-protocol? proto)
                   `(~@protos ~@specs)
                   (let [trace-data (assoc trace-data
-                                     :protocol `'~(resolve-sym proto env))
-                        specs (doall (for [spec specs]
-                                       (trace-protocol-spec spec trace-data env)))]
+                                          :protocol `'~(resolve-sym proto env))
+                        specs      (doall (for [spec specs]
+                                            (trace-protocol-spec spec trace-data env)))]
                     `(~@protos ~@specs)))))
             impls))))
 
@@ -321,9 +321,9 @@
 
 (defmethods trace-form [`reify 'reify]
   [[op & body :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op   '~op
                      :form '~form
-                     :ns '~(.-name *ns*)}]
+                     :ns   '~(.-name *ns*)}]
     `(~op ~@(trace-protocol-specs body trace-data env))))
 
 
@@ -331,9 +331,9 @@
 
 (defmethods trace-form [`extend-type 'extend-type]
   [[op type & specs :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op   '~op
                      :form '~form
-                     :ns '~(.-name *ns*)}]
+                     :ns   '~(.-name *ns*)}]
     `(~op ~type ~@(trace-protocol-specs specs trace-data env))))
 
 
@@ -341,9 +341,9 @@
 
 (defmethods trace-form [`extend-protocol 'extend-protocol]
   [[op proto & specs :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op   '~op
                      :form '~form
-                     :ns '~(.-name *ns*)}
+                     :ns   '~(.-name *ns*)}
         fake-specs (trace-protocol-specs
                     (for [x specs]
                       (if (symbol? x)
@@ -352,8 +352,8 @@
                     trace-data
                     env)
         real-specs (loop [fake-specs fake-specs
-                          types (filter symbol? specs)
-                          new-specs []]
+                          types      (filter symbol? specs)
+                          new-specs  []]
                      (case [(boolean (seq fake-specs))
                             (boolean (seq types))]
                        [true true]
@@ -382,10 +382,10 @@
 
 (defmethods trace-form [`deftype 'deftype]
   [[op tsym fields & specs :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op   '~op
                      :form '~form
-                     :ns '~(.-name *ns*)}
-        new-specs (trace-protocol-specs specs trace-data env)]
+                     :ns   '~(.-name *ns*)}
+        new-specs  (trace-protocol-specs specs trace-data env)]
     `(~op ~tsym ~fields ~@new-specs)))
 
 
@@ -397,9 +397,9 @@
 
 (defmethods trace-form [`defrecord 'defrecord]
   [[op tsym fields & specs :as form] env]
-  (let [trace-data `{:op '~op
+  (let [trace-data `{:op   '~op
                      :form '~form
-                     :ns '~(.-name *ns*)}
-        new-specs (trace-protocol-specs specs trace-data env)]
+                     :ns   '~(.-name *ns*)}
+        new-specs  (trace-protocol-specs specs trace-data env)]
     `(~op ~tsym ~fields ~@new-specs)))
 
