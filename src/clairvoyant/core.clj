@@ -90,7 +90,7 @@
 
   :tracer - custom tracer
   :enabled - boolean, override devmode flags and force tracing on/off
-  :excluded - set of symbols to exclude from tracing, e.g. #{'fn 'fn*}"
+  :exclude - set of op symbols to exclude from tracing, e.g. #{'fn 'fn*}"
   {:arglists '([& forms] [{:keys [tracer enabled exclude]} & forms])}
   [& forms]
   (let [opts     (let [maybe-opts (first forms)]
